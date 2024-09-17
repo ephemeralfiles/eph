@@ -1,0 +1,54 @@
+# https://taskfile.dev
+version: '3'
+vars:
+  BINFILE: eph
+
+# includes:
+#   dev: ./Taskfile_dev.yml
+
+tasks:
+  default:
+    desc: "List tasks"
+    cmds:
+      - task -a
+
+  linters:
+    desc: "Run the linters"
+    cmds:
+      - golangci-lint run  # golangci-lint run --enable-only paralleltest
+
+  build:
+    desc: "Build the binary"
+    cmds:
+      - CGO_ENABLED=0 go build -ldflags '-w -s' -o {{.BINFILE}} .
+
+  snapshot:
+    desc: "Create a snapshot release"
+    cmds:
+      - GITLAB_TOKEN="" goreleaser --clean --snapshot
+    
+  release:
+    desc: "Create a release"
+    cmds:
+      - GITLAB_TOKEN="" goreleaser --clean
+
+  godoc:
+    desc: "Run godoc server"
+    cmds:
+      - godoc -http=:6060
+
+  tests:
+    desc: "Run the tests"
+    dir: tests
+    preconditions:
+      - test -f env.yml
+    cmds:
+      - venom run integration.yml --var-from-file env.yml --output-dir="log" --stop-on-failure
+
+  coverage:
+    desc: "Run the tests with coverage"
+    cmds:
+      # - go generate ./...
+      - go test -coverpkg=github.com/ephemeralfiles/eph/pkg/config,github.com/ephemeralfiles/eph/pkg/ephcli,github.com/ephemeralfiles/eph/pkg/github -coverprofile=profile.cov ./...
+      - go tool cover -func profile.cov
+      - rm profile.cov

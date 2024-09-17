@@ -1,0 +1,140 @@
+version: 2
+project_name: eph
+before:
+  hooks:
+    - go mod download
+builds:
+  - env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -X github.com/ephemeralfiles/eph/cmd.version={{.Version}}
+      - -X github.com/ephemeralfiles/eph/cmd.GithubRepository="ephemeralfiles/eph"
+    goos:
+      - linux
+      - darwin
+      - netbsd
+      - openbsd
+      - freebsd
+      - solaris
+    goarch:
+      - amd64
+      - arm
+      - arm64
+      - riscv64
+    goarm:
+      - "6"
+      - "7"
+    id: lin
+
+  - env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -X github.com/ephemeralfiles/cmd.version={{.Version}}
+    goos:
+      - windows
+    goarch:
+      - amd64
+      - arm
+      - arm64
+    goarm:
+      - "6"
+      - "7"
+    id: win
+
+archives:
+  - name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
+    format: binary
+
+checksum:
+  name_template: 'checksums.txt'
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+
+
+dockers:
+  # https://goreleaser.com/customization/docker/
+  - use: buildx
+    goos: linux
+    goarch: amd64
+    image_templates:
+      - "ghcr.io/ephemeralfiles/{{ .ProjectName }}:{{ .Version }}-amd64"
+      - "ghcr.io/ephemeralfiles/{{ .ProjectName }}:latest-amd64"
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    # extra_files:
+    # - src
+    # - resources
+
+  - use: buildx
+    goos: linux
+    goarch: arm64
+    image_templates:
+      - "ghcr.io/ephemeralfiles/{{ .ProjectName }}:{{ .Version }}-arm64v8"
+      - "ghcr.io/ephemeralfiles/{{ .ProjectName }}:latest-arm64v8"
+    build_flag_templates:
+      - "--platform=linux/arm64/v8"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    # extra_files:
+    # - src
+    # - resources
+
+  - use: buildx
+    goos: linux
+    goarch: arm
+    goarm: "6"
+    image_templates:
+      - "ghcr.io/ephemeralfiles/{{ .ProjectName }}:{{ .Version }}-armv6"
+      - "ghcr.io/ephemeralfiles/{{ .ProjectName }}:latest-armv6"
+    build_flag_templates:
+      - "--platform=linux/arm/v6"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    # extra_files:
+    # - src
+    # - resources
+
+  - use: buildx
+    goos: linux
+    goarch: arm
+    goarm: "7"
+    image_templates:
+      - "ghcr.io/ephemeralfiles/{{ .ProjectName }}:{{ .Version }}-armv7"
+      - "ghcr.io/ephemeralfiles/{{ .ProjectName }}:latest-armv7"
+    build_flag_templates:
+      - "--platform=linux/arm/v7"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    # extra_files:
+    # - src
+    # - resources
+
+docker_manifests:
+  # https://goreleaser.com/customization/docker_manifest/
+  - name_template: ghcr.io/ephemeralfiles/{{ .ProjectName }}:{{ .Version }}
+    image_templates:
+      - ghcr.io/ephemeralfiles/{{ .ProjectName }}:{{ .Version }}-amd64
+      - ghcr.io/ephemeralfiles/{{ .ProjectName }}:{{ .Version }}-arm64v8
+      - ghcr.io/ephemeralfiles/{{ .ProjectName }}:{{ .Version }}-armv6
+      - ghcr.io/ephemeralfiles/{{ .ProjectName }}:{{ .Version }}-armv7
+  - name_template: ghcr.io/ephemeralfiles/{{ .ProjectName }}:latest
+    image_templates:
+      - ghcr.io/ephemeralfiles/{{ .ProjectName }}:latest-amd64
+      - ghcr.io/ephemeralfiles/{{ .ProjectName }}:latest-arm64v8
+      - ghcr.io/ephemeralfiles/{{ .ProjectName }}:latest-armv6
+      - ghcr.io/ephemeralfiles/{{ .ProjectName }}:latest-armv7

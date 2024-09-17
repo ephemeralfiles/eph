@@ -1,0 +1,35 @@
+name: Exec testsuite
+testcases:
+
+- name: Test upload
+  steps:
+  - type: exec
+    script: |
+      export EPHEMERALFILES_TOKEN={{.JWTTOKEN1}}
+      export EPHEMERALFILES_ENDPOINT={{.ENDPOINT}}
+      cd ..
+      go run . up -i Dockerfile
+    info: "result.systemout is {{.result.systemout}}"
+    assertions:
+    - result.code ShouldEqual 0
+
+- name: Create random data file 2GB
+  steps:
+  - type: exec
+    script: |
+      test ! -f /tmp/data && dd if=/dev/urandom of=/tmp/data bs=2048 count=1048576
+    info: "result.systemout is {{.result.systemout}}"
+    assertions:
+    - result.code ShouldEqual 0
+
+- name: Test upload 2GB
+  steps:
+  - type: exec
+    script: |
+      export EPHEMERALFILES_TOKEN={{.JWTTOKEN1}}
+      export EPHEMERALFILES_ENDPOINT={{.ENDPOINT}}
+      cd ..
+      go run . up -i /tmp/data
+    info: "result.systemout is {{.result.systemout}}"
+    assertions:
+    - result.code ShouldEqual 0
