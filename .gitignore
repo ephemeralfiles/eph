@@ -1,0 +1,6 @@
+/.task
+/dist
+log
+/eph
+/tests/env.yml
+/tests/integration-*
