@@ -2,7 +2,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/ephemeralfiles/eph)](https://goreportcard.com/report/github.com/ephemeralfiles/eph)
 ![GitHub Downloads](https://img.shields.io/github/downloads/ephemeralfiles/eph/total)
 [![GoDoc](https://godoc.org/github.com/ephemeralfiles/eph?status.svg)](https://godoc.org/github.com/ephemeralfiles/eph)
-[![License](https://img.shields.io/github/license/ephemeralfiles/eph.svgg)](LICENSE)
+[![License](https://img.shields.io/github/license/ephemeralfiles/eph.svg)](LICENSE)
 
 # eph
 
@@ -16,7 +16,7 @@ Install from the release binary.
 
 ```bash
 $ mkdir $HOME/.bin
-$ curl -L https://github.com/ephemeralpfiles/eph/releases/download/0.1.0/eph > $HOME/.bin/eph
+$ curl -L https://github.com/ephemeralfiles/eph/releases/download/v0.1.0/eph_0.1.0_linux_amd64 > $HOME/.bin/eph
 $ chmod +x $HOME/.bin/eph
 $ # add $HOME/.bin in your PATH
 $ export PATH=$HOME/.bin:$PATH
@@ -47,4 +47,3 @@ Box configuration:
   used: 0 MB
   remaining: 5120 MB
 ```
-
