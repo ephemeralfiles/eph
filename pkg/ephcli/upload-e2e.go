@@ -5,6 +5,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -147,10 +148,48 @@ func (c *ClientEphemeralfiles) UploadFileInChunks(aeskey []byte, filePath, targe
 }
 
 func (c *ClientEphemeralfiles) UploadE2E(fileToUpload string) error {
-	// if c.noProgressBar {
-	// 	return c.UploadWithoutProgressBar(fileToUpload)
-	// }
-	// return uploadFileInChunks(fileToUpload, c.UploadE2EEndpoint(uuid))
+	fileID, pubkey, err := c.GetPublicKey()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error getting public key: %s\n", err)
+		os.Exit(1)
+	}
+	fmt.Println("File ID: ", fileID)
+	fmt.Println("Public Key: ", pubkey)
+
+	aesKey, err := GenAESKey32bits()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error generating AES key: %s\n", err)
+		os.Exit(1)
+	}
+	fmt.Println("AES Key: ", aesKey)
+	hexString := hex.EncodeToString(aesKey)
+
+	fmt.Println("aesKey: ", aesKey)
+	// convert aesKey to hexadecimal
+
+	// fmt.Println("encodedAESKey: ", encodedAESKey)
+	fmt.Println("hexString: ", hexString)
+	// encrypt with public key
+	encryptedAESKey, err := EncryptAESKey(pubkey, hexString)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error encrypting AES key: %s\n", err)
+		os.Exit(1)
+	}
+	fmt.Println("Encrypted AES Key: ", encryptedAESKey)
+
+	// Send the encrypted AES key to the server
+	err = c.SendAESKey(fileID, encryptedAESKey)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error sending AES key: %s\n", err)
+		os.Exit(1)
+	}
+
+	// Upload the file
+	err = c.UploadFileInChunks(aesKey, fileToUpload, c.UploadE2EEndpoint(fileID))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error uploading file: %s\n", err)
+		os.Exit(1)
+	}
 	return nil
 }
 
