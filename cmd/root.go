@@ -72,11 +72,14 @@ func init() {
 	configCmd.PersistentFlags().StringVarP(&token, "token", "t", "", "ephemeralfiles token")
 	configCmd.PersistentFlags().StringVarP(&endpoint, "endpoint", "e", "", "ephemeralfiles endpoint")
 
+	uploadE2ECmd.PersistentFlags().StringVarP(&fileToUpload, "input", "i", "", "file to upload")
+
 	// add subcommands
 	rootCmd.AddCommand(downloadCmd)
 	rootCmd.AddCommand(removeCmd)
 	rootCmd.AddCommand(purgeCmd)
 	rootCmd.AddCommand(uploadCmd)
+	rootCmd.AddCommand(uploadE2ECmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(checkCmd)
 	rootCmd.AddCommand(configCmd)
