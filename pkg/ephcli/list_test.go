@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/ephemeralfiles/eph/pkg/dto"
 	"github.com/ephemeralfiles/eph/pkg/ephcli"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,14 +19,14 @@ func TestList(t *testing.T) {
 	t.Run("standard case: no error", func(t *testing.T) {
 		t.Parallel()
 		// Simulate a server
-		response := ephcli.FileList{
-			ephcli.File{
-				Idfile:   "1",
+		response := dto.FileList{
+			dto.File{
+				FileID:   "1",
 				FileName: "file1",
 				Size:     100,
 			},
 			{
-				Idfile:   "2",
+				FileID:   "2",
 				FileName: "file2",
 				Size:     200,
 			},
@@ -50,7 +51,7 @@ func TestList(t *testing.T) {
 	t.Run("Check token is in header and method is GET", func(t *testing.T) {
 		t.Parallel()
 		// Simulate a server
-		response := ephcli.FileList{}
+		response := dto.FileList{}
 		responseJSON, _ := json.Marshal(response)
 		ts := httptest.NewTLSServer(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -112,45 +113,45 @@ func TestPrint(t *testing.T) {
 	t.Parallel()
 	t.Run("case with no data", func(t *testing.T) {
 		t.Parallel()
-		fl := ephcli.FileList{}
+		fl := dto.FileList{}
 		// table
-		err := fl.Print()
+		err := ephcli.Print(&fl)
 		require.NoError(t, err)
 		// CSV
-		err = fl.PrintCSV()
+		err = ephcli.PrintCSV(&fl)
 		require.NoError(t, err)
 		// JSON
-		err = fl.PrintJSON()
+		err = ephcli.PrintJSON(&fl)
 		require.NoError(t, err)
 		// YAML
-		err = fl.PrintYAML()
+		err = ephcli.PrintYAML(&fl)
 		require.NoError(t, err)
 	})
 	t.Run("case with data", func(t *testing.T) {
 		t.Parallel()
-		fl := ephcli.FileList{
-			ephcli.File{
-				Idfile:   "1",
+		fl := dto.FileList{
+			dto.File{
+				FileID:   "1",
 				FileName: "file1",
 				Size:     100,
 			},
 			{
-				Idfile:   "2",
+				FileID:   "2",
 				FileName: "file2",
 				Size:     200,
 			},
 		}
 		// table
-		err := fl.Print()
+		err := ephcli.Print(&fl)
 		require.NoError(t, err)
 		// CSV
-		err = fl.PrintCSV()
+		err = ephcli.PrintCSV(&fl)
 		require.NoError(t, err)
 		// JSON
-		err = fl.PrintJSON()
+		err = ephcli.PrintJSON(&fl)
 		require.NoError(t, err)
 		// YAML
-		err = fl.PrintYAML()
+		err = ephcli.PrintYAML(&fl)
 		require.NoError(t, err)
 	})
 }
