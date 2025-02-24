@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
+	"github.com/ephemeralfiles/eph/pkg/dto"
 )
 
 var (
@@ -14,7 +16,7 @@ var (
 
 // parseError is a helper function to parse the error from the response
 func parseError(resp *http.Response) error {
-	var jsonResponse APIError
+	var jsonResponse dto.APIError
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("error reading response body: %w", err)

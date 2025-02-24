@@ -38,14 +38,14 @@ var purgeCmd = &cobra.Command{
 		}
 
 		for _, file := range files {
-			err = c.Remove(file.Idfile)
+			err = c.Remove(file.FileID)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error removing file %s: %s\n", file.Idfile, err)
+				fmt.Fprintf(os.Stderr, "Error removing file %s: %s\n", file.FileID, err)
 				gotError = true
 
 				continue
 			}
-			fmt.Printf("File %s removed\n", file.Idfile)
+			fmt.Printf("File %s removed\n", file.FileID)
 		}
 		if gotError {
 			os.Exit(1)

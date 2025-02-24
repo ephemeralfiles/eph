@@ -44,13 +44,13 @@ var listCmd = &cobra.Command{
 
 		switch renderingType {
 		case "json":
-			err = files.PrintJSON()
+			err = ephcli.PrintJSON(&files)
 		case "csv":
-			err = files.PrintCSV()
+			err = ephcli.PrintCSV(&files)
 		case "yaml":
-			err = files.PrintYAML()
+			err = ephcli.PrintYAML(&files)
 		default:
-			err = files.Print()
+			err = ephcli.Print(&files)
 		}
 
 		if err != nil {
