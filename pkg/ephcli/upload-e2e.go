@@ -12,10 +12,13 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+
+	"github.com/ephemeralfiles/eph/pkg/dto"
+	"github.com/schollz/progressbar/v3"
 )
 
 func (c *ClientEphemeralfiles) SendAESKeyEndpoint(fileID string) string {
-	return fmt.Sprintf("%s/%s/files/%s/key", c.endpoint, apiVersion, fileID)
+	return fmt.Sprintf("%s/%s/files/%s/key-upload", c.endpoint, apiVersion, fileID)
 }
 
 func (c *ClientEphemeralfiles) GetPublicKeyEndpoint() string {
@@ -23,15 +26,15 @@ func (c *ClientEphemeralfiles) GetPublicKeyEndpoint() string {
 }
 
 func (c *ClientEphemeralfiles) UploadE2EEndpoint(uuid string) string {
-	return fmt.Sprintf("%s/%s/multipart-upload/%s", c.endpoint, apiVersion, uuid)
+	return fmt.Sprintf("%s/%s/multipart/%s", c.endpoint, apiVersion, uuid)
 }
 
 const (
-	chunkSize = 1024 * 1024 // 1MB chunks
+	chunkSize = 128 * 1024 * 1024 // 128MB chunks
 )
 
 func (c *ClientEphemeralfiles) GetPublicKey() (string, string, error) {
-	req, err := http.NewRequest("HEAD", c.GetPublicKeyEndpoint(), nil)
+	req, err := http.NewRequest(http.MethodHead, c.GetPublicKeyEndpoint(), nil)
 	if err != nil {
 		return "", "", fmt.Errorf("error creating request: %w", err)
 	}
@@ -77,6 +80,13 @@ func (c *ClientEphemeralfiles) UploadFileInChunks(aeskey []byte, filePath, targe
 	}
 	fileSize := fileInfo.Size()
 
+	// Create progress bar
+	bar := progressbar.NewOptions64(fileSize, progressbar.OptionClearOnFinish(),
+		progressbar.OptionShowBytes(true), progressbar.OptionSetWidth(DefaultBarWidth),
+		progressbar.OptionSetDescription("uploadding file..."),
+		progressbar.OptionSetVisibility(!c.noProgressBar),
+	)
+
 	// Create HTTP client
 	client := &http.Client{}
 
@@ -121,7 +131,7 @@ func (c *ClientEphemeralfiles) UploadFileInChunks(aeskey []byte, filePath, targe
 		}
 
 		// Create request
-		req, err := http.NewRequest("POST", targetURL, body)
+		req, err := http.NewRequest(http.MethodPost, targetURL, body)
 		if err != nil {
 			return fmt.Errorf("error creating request: %w", err)
 		}
@@ -141,9 +151,11 @@ func (c *ClientEphemeralfiles) UploadFileInChunks(aeskey []byte, filePath, targe
 			return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 		}
 
-		fmt.Printf("Uploaded chunk %d-%d of %d bytes\n", start, end, fileSize)
+		_ = bar.Add(chunkSize)
+		// fmt.Printf("Uploaded chunk %d-%d of %d bytes\n", start, end, fileSize)
 	}
-
+	bar.Clear()
+	bar.Close()
 	return nil
 }
 
@@ -194,11 +206,7 @@ func (c *ClientEphemeralfiles) UploadE2E(fileToUpload string) error {
 }
 
 func (c *ClientEphemeralfiles) SendAESKey(fileID, encryptedAESKey string) error {
-
-	type DTORequestAESKey struct {
-		AESKey string `json:"aeskey"`
-	}
-	payload := DTORequestAESKey{
+	payload := dto.RequestAESKey{
 		AESKey: encryptedAESKey,
 	}
 	// Send request
@@ -207,7 +215,7 @@ func (c *ClientEphemeralfiles) SendAESKey(fileID, encryptedAESKey string) error 
 	if err != nil {
 		return fmt.Errorf("error marshalling payload: %w", err)
 	}
-	req, err := http.NewRequest("POST", c.SendAESKeyEndpoint(fileID), bytes.NewBuffer(body))
+	req, err := http.NewRequest(http.MethodPost, c.SendAESKeyEndpoint(fileID), bytes.NewBuffer(body))
 	if err != nil {
 		return fmt.Errorf("error creating request: %w", err)
 	}

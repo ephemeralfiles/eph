@@ -56,7 +56,7 @@ func TestList(t *testing.T) {
 		ts := httptest.NewTLSServer(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "Bearer token", r.Header.Get("Authorization"))
-				assert.Equal(t, "GET", r.Method)
+				assert.Equal(t, http.MethodGet, r.Method)
 				fmt.Fprintln(w, string(responseJSON))
 			}))
 

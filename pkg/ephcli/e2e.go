@@ -60,7 +60,6 @@ func EncryptAESKey(publicKeyPem, aesKey string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("encryption failed: %v", err)
 	}
-
 	// Convert to base64
 	return base64.StdEncoding.EncodeToString(encryptedData), nil
 }

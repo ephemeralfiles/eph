@@ -31,9 +31,6 @@ var rootCmd = &cobra.Command{
 	Use:   "eph",
 	Short: "ephemeralfiles command line interface",
 	Long:  `ephemeralfiles command line interface`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
 }
 
 func Execute() {
@@ -64,6 +61,9 @@ func init() {
 	// download subcommand parameters
 	downloadCmd.PersistentFlags().StringVarP(&uuidFile, "input", "i", "", "uuid of file to download")
 	downloadCmd.PersistentFlags().BoolVarP(&noProgressBar, "no-progress-bar", "n", false, "disable progress bar")
+	// downloadE2ECmd subcommand parameters
+	downloadE2ECmd.PersistentFlags().StringVarP(&uuidFile, "input", "i", "", "uuid of file to download")
+	downloadE2ECmd.PersistentFlags().BoolVarP(&noProgressBar, "no-progress-bar", "n", false, "disable progress bar")
 	// list subcommand parameters
 	listCmd.PersistentFlags().StringVarP(&renderingType, "rendering", "r", "table", "rendering type (table, json, csv)")
 	// remove subcommand parameters
@@ -76,6 +76,7 @@ func init() {
 
 	// add subcommands
 	rootCmd.AddCommand(downloadCmd)
+	rootCmd.AddCommand(downloadE2ECmd)
 	rootCmd.AddCommand(removeCmd)
 	rootCmd.AddCommand(purgeCmd)
 	rootCmd.AddCommand(uploadCmd)
