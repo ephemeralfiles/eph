@@ -18,7 +18,7 @@ import (
 )
 
 func (c *ClientEphemeralfiles) SendAESKeyEndpoint(fileID string) string {
-	return fmt.Sprintf("%s/%s/files/%s/key-upload", c.endpoint, apiVersion, fileID)
+	return fmt.Sprintf("%s/%s/files/%s/upload-key", c.endpoint, apiVersion, fileID)
 }
 
 func (c *ClientEphemeralfiles) GetPublicKeyEndpoint() string {
