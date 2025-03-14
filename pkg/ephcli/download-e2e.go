@@ -12,6 +12,7 @@ import (
 	"os"
 
 	"github.com/ephemeralfiles/eph/pkg/dto"
+	"github.com/schollz/progressbar/v3"
 )
 
 func (c *ClientEphemeralfiles) GetFileInformationEndpoint(fileID string) string {
@@ -117,14 +118,24 @@ func (c *ClientEphemeralfiles) DownloadE2E(fileID string) error {
 		os.Exit(1)
 	}
 
-	for i := 0; i <= fileInfo.NbParts; i++ {
-		fmt.Println("Downloading part ", i)
-		err = c.DownloadPartE2E("output", transactionID, aesKey, i)
+	// Create progress bar
+	bar := progressbar.NewOptions64(fileInfo.Size, progressbar.OptionClearOnFinish(),
+		progressbar.OptionShowBytes(true), progressbar.OptionSetWidth(DefaultBarWidth),
+		progressbar.OptionSetDescription("downloading file..."),
+		progressbar.OptionSetVisibility(!c.noProgressBar),
+	)
+
+	for i := 0; i < fileInfo.NbParts; i++ {
+		// fmt.Println("Downloading part ", i)
+		chunkSize, err := c.DownloadPartE2E(fileInfo.Filename, transactionID, aesKey, i)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error downloading part: %s\n", err)
 			os.Exit(1)
 		}
+		_ = bar.Add(chunkSize)
 	}
+	bar.Clear()
+	bar.Close()
 	return nil
 }
 
@@ -132,47 +143,51 @@ func (c *ClientEphemeralfiles) DownloadPartE2EEndpoint(transactionID string, par
 	return fmt.Sprintf("%s/%s/multipart/%s/%d", c.endpoint, apiVersion, transactionID, part)
 }
 
-func (c *ClientEphemeralfiles) DownloadPartE2E(outputFilePath string, transactionID string, aesKey []byte, part int) error {
+func (c *ClientEphemeralfiles) DownloadPartE2E(outputFilePath string, transactionID string, aesKey []byte, part int) (int, error) {
 	req, err := http.NewRequest(http.MethodGet, c.DownloadPartE2EEndpoint(transactionID, part), nil)
 	if err != nil {
-		return fmt.Errorf("error creating request: %w", err)
+		return 0, fmt.Errorf("error creating request: %w", err)
 	}
 	// Set headers
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("error sending request: %w", err)
+		return 0, fmt.Errorf("error sending request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return 0, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("error reading response: %w", err)
+		return 0, fmt.Errorf("error reading response: %w", err)
 	}
 	// Decrypt response
 	decryptedChunk, err := DecryptAES(aesKey, body)
 	if err != nil {
-		return fmt.Errorf("error decrypting chunk: %w", err)
+		return 0, fmt.Errorf("error decrypting chunk: %w", err)
 	}
 
 	// Write decrypted chunk to file
 	file, err := os.OpenFile(outputFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		return fmt.Errorf("error opening file: %w", err)
+		return 0, fmt.Errorf("error opening file: %w", err)
 	}
 	defer file.Close()
 
 	_, err = file.Write(decryptedChunk)
 	if err != nil {
-		return fmt.Errorf("error writing chunk to file: %w", err)
+		return 0, fmt.Errorf("error writing chunk to file: %w", err)
 	}
 
-	return nil
+	stat, err := file.Stat()
+	if err != nil {
+		return 0, fmt.Errorf("error getting file info: %w", err)
+	}
+	return int(stat.Size()), nil
 }
 
 func (c *ClientEphemeralfiles) UpdateAESKeyForDownloadTransactionEndpoint(transactionID string) string {
