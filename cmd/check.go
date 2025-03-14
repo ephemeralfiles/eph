@@ -20,7 +20,7 @@ If the token is expired, it will exit with status 1.
 `,
 	Run: func(_ *cobra.Command, _ []string) {
 		cfg := config.NewConfig()
-		err := cfg.LoadConfiguration()
+		err := cfg.LoadConfiguration(configurationFile)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error loading configuration: %s\n", err)
 			os.Exit(1)

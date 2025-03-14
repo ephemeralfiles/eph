@@ -18,7 +18,7 @@ var purgeCmd = &cobra.Command{
 	Run: func(_ *cobra.Command, _ []string) {
 		var gotError bool
 		cfg := config.NewConfig()
-		err := cfg.LoadConfiguration()
+		err := cfg.LoadConfiguration(configurationFile)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error loading configuration: %s\n", err)
 			os.Exit(1)

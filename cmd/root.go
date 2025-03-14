@@ -3,9 +3,9 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"runtime"
 
+	"github.com/ephemeralfiles/eph/pkg/config"
 	"github.com/spf13/cobra"
 )
 
@@ -52,8 +52,7 @@ func init() {
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	// -c option to specify the configuration file
 	rootCmd.PersistentFlags().StringVarP(&configurationFile, "config", "c",
-		filepath.Join(homedir, ".config/eph/default.yml"),
-		"configuration file (default is $HOME/.config/eph/default.yml))")
+		config.DefaultConfigFilePath(), "configuration file")
 
 	// upload subcommand parameters
 	uploadCmd.PersistentFlags().StringVarP(&fileToUpload, "input", "i", "", "file to upload")

@@ -155,7 +155,7 @@ func TestLoadConfigurationLoadEnvVarByDefault(t *testing.T) {
 	// Test the function
 	cfg := config.NewConfig()
 	cfg.SetHomedir("/tmp")
-	err := cfg.LoadConfiguration()
+	err := cfg.LoadConfiguration("")
 	require.NoError(t, err)
 	assert.Equal(t, "envvar", cfg.Token)
 	assert.Equal(t, DefaultEndpoint, cfg.Endpoint)
@@ -184,7 +184,7 @@ func TestLoadConfigurationWithNoEnv(t *testing.T) {
 	// Test the function
 	cfg := config.NewConfig()
 	cfg.SetHomedir("/tmp")
-	err = cfg.LoadConfiguration()
+	err = cfg.LoadConfiguration("/tmp/.config/eph/default.yml")
 	require.NoError(t, err)
 	assert.Equal(t, "sdf", cfg.Token)
 	assert.Equal(t, "http://localhost:8080", cfg.Endpoint)
@@ -196,7 +196,7 @@ func TestLoadConfigurationNotFound(t *testing.T) {
 
 	cfg := config.NewConfig()
 	cfg.SetHomedir("/tmp")
-	err := cfg.LoadConfiguration()
+	err := cfg.LoadConfiguration("/tmp/.config/eph/default.yml")
 	require.Error(t, err)
 }
 
@@ -222,7 +222,7 @@ func TestLoadConfigurationReturnsErrIfNotConfigured(t *testing.T) {
 	// Test the function
 	cfg := config.NewConfig()
 	cfg.SetHomedir("/tmp")
-	err = cfg.LoadConfiguration()
+	err = cfg.LoadConfiguration("/tmp/.config/eph/default.yml")
 	require.Error(t, err)
 }
 
@@ -234,12 +234,12 @@ func TestSaveConfiguration(t *testing.T) {
 		cfg.Endpoint = "http://localhost:8080"
 		cfg.Token = "sdf"
 		cfg.SetHomedir("/tmp")
-		err := cfg.SaveConfiguration()
+		err := cfg.SaveConfiguration("/tmp/default.yml")
 		require.NoError(t, err)
 		// Load the configuration to check the values
 		cfg = config.NewConfig()
 		cfg.SetHomedir("/tmp")
-		err = cfg.LoadConfiguration()
+		err = cfg.LoadConfiguration("/tmp/default.yml")
 		require.NoError(t, err)
 		assert.Equal(t, "sdf", cfg.Token)
 		assert.Equal(t, "http://localhost:8080", cfg.Endpoint)
@@ -249,7 +249,7 @@ func TestSaveConfiguration(t *testing.T) {
 		t.Parallel()
 		cfg := config.NewConfig()
 		cfg.SetHomedir("/tmp")
-		err := cfg.SaveConfiguration()
+		err := cfg.SaveConfiguration("/tmp/.config/eph/default.yml")
 		require.Error(t, err)
 	})
 
@@ -259,7 +259,7 @@ func TestSaveConfiguration(t *testing.T) {
 		cfg.Endpoint = "http://localhost:8080"
 		cfg.Token = "sdf"
 		cfg.SetHomedir("/dir/does/not/exist")
-		err := cfg.SaveConfiguration()
+		err := cfg.SaveConfiguration("/dir/does/not/exist/.config/eph/default.yml")
 		require.Error(t, err)
 	})
 }

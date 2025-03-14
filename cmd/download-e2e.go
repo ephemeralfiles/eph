@@ -22,7 +22,7 @@ var downloadE2ECmd = &cobra.Command{
 			os.Exit(1)
 		}
 		cfg := config.NewConfig()
-		err := cfg.LoadConfiguration()
+		err := cfg.LoadConfiguration(configurationFile)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error loading configuration: %s\n", err)
 			os.Exit(1)

@@ -87,15 +87,15 @@ func (c *Config) IsConfigValid() bool {
 }
 
 // LoadConfiguration loads the configuration from the environment variables first
-// If the configuration is not valid, it tries to load the configuration from the $HOME/.eph.yml file
-func (c *Config) LoadConfiguration() error {
+// If the configuration is not valid, it tries to load the configuration from a file
+func (c *Config) LoadConfiguration(cfgFilePath string) error {
 	c.LoadConfigFromEnvVar()
 
 	if c.IsConfigValid() {
 		return nil
 	}
 
-	err := c.LoadConfigFromFile(filepath.Join(c.homedir, ".config", "eph", "default.yml"))
+	err := c.LoadConfigFromFile(cfgFilePath)
 	if err != nil {
 		return err
 	}
@@ -106,7 +106,9 @@ func (c *Config) LoadConfiguration() error {
 	return ErrConfigurationNotFound
 }
 
-func (c *Config) SaveConfiguration() error {
+// SaveConfiguration saves the configuration to a file
+// If the parameter is empty, it saves the configuration to the default file
+func (c *Config) SaveConfiguration(cfgFilePath string) error {
 	var (
 		yamlData []byte
 		err      error
@@ -118,15 +120,25 @@ func (c *Config) SaveConfiguration() error {
 	if c.Endpoint == "" {
 		return ErrInvalidEndpoint
 	}
-	if err = os.MkdirAll(filepath.Join(c.homedir, ".config", "eph"), ConfigurationDirPerm); err != nil {
-		return fmt.Errorf("error creating configuration directory: %w", err)
+	if cfgFilePath == "" {
+		cfgFilePath = DefaultConfigFilePath()
+		if err = os.MkdirAll(DefautConfigDir(), ConfigurationDirPerm); err != nil {
+			return fmt.Errorf("error creating configuration directory: %w", err)
+		}
 	}
 	if yamlData, err = yaml.Marshal(c); err != nil {
 		return fmt.Errorf("error marshalling configuration: %w", err)
 	}
-	if err = os.WriteFile(filepath.Join(c.homedir, ".config", "eph", "default.yml"),
-		yamlData, ConfigurationFilePerm); err != nil {
+	if err = os.WriteFile(cfgFilePath, yamlData, ConfigurationFilePerm); err != nil {
 		return fmt.Errorf("error writing configuration file: %w", err)
 	}
 	return nil
+}
+
+func DefautConfigDir() string {
+	return filepath.Join(os.Getenv("HOME"), ".config", "eph")
+}
+
+func DefaultConfigFilePath() string {
+	return filepath.Join(DefautConfigDir(), "default.yml")
 }
