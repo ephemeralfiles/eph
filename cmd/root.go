@@ -6,6 +6,7 @@ import (
 	"runtime"
 
 	"github.com/ephemeralfiles/eph/pkg/config"
+	"github.com/ephemeralfiles/eph/pkg/ephcli"
 	"github.com/spf13/cobra"
 )
 
@@ -16,6 +17,7 @@ const (
 
 var (
 	noProgressBar     bool
+	debugMode         bool
 	configurationFile string
 	token             string
 	endpoint          string
@@ -24,6 +26,9 @@ var (
 	uuidFile     string
 
 	renderingType string
+
+	cfg *config.Config
+	c   *ephcli.ClientEphemeralfiles
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -53,6 +58,8 @@ func init() {
 	// -c option to specify the configuration file
 	rootCmd.PersistentFlags().StringVarP(&configurationFile, "config", "c",
 		config.DefaultConfigFilePath(), "configuration file")
+	// -d option to enable debug mode
+	rootCmd.PersistentFlags().BoolVarP(&debugMode, "debug", "d", false, "enable debug mode (disable progress bar)")
 
 	// upload subcommand parameters
 	uploadCmd.PersistentFlags().StringVarP(&fileToUpload, "input", "i", "", "file to upload")
@@ -85,5 +92,25 @@ func init() {
 	rootCmd.AddCommand(configCmd)
 	if runtime.GOOS != "windows" {
 		rootCmd.AddCommand(autoupdateCmd)
+	}
+}
+
+// InitClient initializes the client
+func InitClient() {
+	cfg = config.NewConfig()
+	err := cfg.LoadConfiguration(configurationFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading configuration: %s\n", err)
+		os.Exit(1)
+	}
+	c = ephcli.NewClient(cfg.Token)
+	if cfg.Endpoint != "" {
+		c.SetEndpoint(cfg.Endpoint)
+	}
+	if noProgressBar {
+		c.DisableProgressBar()
+	}
+	if debugMode {
+		c.SetDebug()
 	}
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ephemeralfiles/eph/pkg/config"
 	"github.com/ephemeralfiles/eph/pkg/ephcli"
 	"github.com/spf13/cobra"
 )
@@ -16,23 +15,13 @@ var listCmd = &cobra.Command{
 	Long: `list files. The rendering type is optional.
 `,
 	Run: func(_ *cobra.Command, _ []string) {
+		InitClient()
 		// check rendering type
 		if renderingType != "table" && renderingType != "json" && renderingType != "csv" && renderingType != "yaml" {
 			fmt.Fprintf(os.Stderr, "Invalid rendering type\n")
 			os.Exit(1)
 		}
 
-		cfg := config.NewConfig()
-		err := cfg.LoadConfiguration(configurationFile)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading configuration: %s\n", err)
-			os.Exit(1)
-		}
-
-		c := ephcli.NewClient(cfg.Token)
-		if cfg.Endpoint != "" {
-			c.SetEndpoint(cfg.Endpoint)
-		}
 		files, err := c.Fetch()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error fetching files: %s\n", err)
