@@ -16,7 +16,7 @@ Install from the release binary.
 
 ```bash
 $ mkdir $HOME/.bin
-$ curl -L https://github.com/ephemeralfiles/eph/releases/download/v0.1.0/eph_0.1.0_linux_amd64 > $HOME/.bin/eph
+$ curl -L https://github.com/ephemeralfiles/eph/releases/download/v0.2.0/eph_0.2.0_linux_amd64 --output $HOME/.bin/eph
 $ chmod +x $HOME/.bin/eph
 $ # add $HOME/.bin in your PATH
 $ export PATH=$HOME/.bin:$PATH
