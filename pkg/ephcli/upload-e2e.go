@@ -157,7 +157,7 @@ func (c *ClientEphemeralfiles) UploadFileInChunks(aeskey []byte, filePath, targe
 		c.log.Debug("UploadFileInChunks", slog.Int64("fileSize", fileSize))
 		c.log.Debug("UploadFileInChunks", slog.Int("chunkSize", len(encryptedChunk)))
 	}
-	bar.Clear()
+	_ = bar.Clear()
 	bar.Close()
 	return nil
 }
