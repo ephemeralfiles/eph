@@ -124,7 +124,7 @@ func (c *ClientEphemeralfiles) DownloadE2E(fileID string) error {
 		_ = bar.Add(chunkSize)
 		c.log.Debug("DownloadE2E part downloaded", slog.Int("Part", i), slog.Int("ChunkSize", chunkSize))
 	}
-	bar.Clear()
+	_ = bar.Clear()
 	bar.Close()
 	return nil
 }
