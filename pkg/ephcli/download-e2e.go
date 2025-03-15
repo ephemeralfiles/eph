@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -79,43 +80,32 @@ func (c *ClientEphemeralfiles) DownloadE2E(fileID string) error {
 	if err != nil {
 		return fmt.Errorf("error decoding response: %w", err)
 	}
-
-	fmt.Println("File Information: ", fileInfo)
+	c.log.Debug("DownloadE2E", slog.String("Filename", fileInfo.Filename), slog.Int("NbParts", fileInfo.NbParts), slog.Int64("Size", fileInfo.Size))
 
 	transactionID, pubkey, err := c.CreateNewDownloadTransaction(fileID)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error getting public key: %s\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error creating new download transaction: %w", err)
 	}
-	fmt.Println("File ID: ", transactionID)
-	fmt.Println("Public Key: ", pubkey)
+	c.log.Debug("DownloadE2E", slog.String("TransactionID", transactionID), slog.String("PublicKey", pubkey))
 
 	aesKey, err := GenAESKey32bits()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error generating AES key: %s\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error generating AES key: %w", err)
 	}
-	fmt.Println("AES Key: ", aesKey)
 	hexString := hex.EncodeToString(aesKey)
+	c.log.Debug("DownloadE2E", slog.String("AESKey", string(aesKey)), slog.String("HexString", hexString))
 
-	fmt.Println("aesKey: ", aesKey)
-	// convert aesKey to hexadecimal
-
-	// fmt.Println("encodedAESKey: ", encodedAESKey)
-	fmt.Println("hexString: ", hexString)
 	// encrypt with public key
 	encryptedAESKey, err := EncryptAESKey(pubkey, hexString)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error encrypting AES key: %s\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error encrypting AES key: %w", err)
 	}
-	fmt.Println("Encrypted AES Key: ", encryptedAESKey)
+	c.log.Debug("DownloadE2E", slog.String("EncryptedAESKey", encryptedAESKey))
 
 	// Send the encrypted AES key to the server
 	err = c.SendAESKeyForDownloadTransaction(transactionID, encryptedAESKey)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error sending AES key: %s\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error sending AES key: %w", err)
 	}
 
 	// Create progress bar
@@ -126,13 +116,13 @@ func (c *ClientEphemeralfiles) DownloadE2E(fileID string) error {
 	)
 
 	for i := 0; i < fileInfo.NbParts; i++ {
-		// fmt.Println("Downloading part ", i)
+		c.log.Debug("DownloadE2E", slog.Int("Part", i))
 		chunkSize, err := c.DownloadPartE2E(fileInfo.Filename, transactionID, aesKey, i)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error downloading part: %s\n", err)
-			os.Exit(1)
+			return fmt.Errorf("error downloading part %d: %w", i, err)
 		}
 		_ = bar.Add(chunkSize)
+		c.log.Debug("DownloadE2E part downloaded", slog.Int("Part", i), slog.Int("ChunkSize", chunkSize))
 	}
 	bar.Clear()
 	bar.Close()

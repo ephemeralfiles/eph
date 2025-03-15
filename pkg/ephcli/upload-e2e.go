@@ -9,12 +9,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"os"
 
 	"github.com/ephemeralfiles/eph/pkg/dto"
 	"github.com/schollz/progressbar/v3"
+)
+
+const (
+	chunkSize = 128 * 1024 * 1024 // 128MB chunks
 )
 
 func (c *ClientEphemeralfiles) SendAESKeyEndpoint(fileID string) string {
@@ -28,10 +33,6 @@ func (c *ClientEphemeralfiles) GetPublicKeyEndpoint() string {
 func (c *ClientEphemeralfiles) UploadE2EEndpoint(uuid string) string {
 	return fmt.Sprintf("%s/%s/multipart/%s", c.endpoint, apiVersion, uuid)
 }
-
-const (
-	chunkSize = 128 * 1024 * 1024 // 128MB chunks
-)
 
 func (c *ClientEphemeralfiles) GetPublicKey() (string, string, error) {
 	req, err := http.NewRequest(http.MethodHead, c.GetPublicKeyEndpoint(), nil)
@@ -65,7 +66,9 @@ func (c *ClientEphemeralfiles) GetPublicKey() (string, string, error) {
 }
 
 func (c *ClientEphemeralfiles) UploadFileInChunks(aeskey []byte, filePath, targetURL string) error {
-	fmt.Println("Uploading file in chunks", targetURL)
+	c.log.Debug("UploadFileInChunks", slog.String("aeskey", string(aeskey)))
+	c.log.Debug("UploadFileInChunks", slog.String("filePath", filePath))
+	c.log.Debug("UploadFileInChunks", slog.String("targetURL", targetURL))
 	// Open the file
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -86,9 +89,6 @@ func (c *ClientEphemeralfiles) UploadFileInChunks(aeskey []byte, filePath, targe
 		progressbar.OptionSetDescription("uploadding file..."),
 		progressbar.OptionSetVisibility(!c.noProgressBar),
 	)
-
-	// Create HTTP client
-	client := &http.Client{}
 
 	// Upload file in chunks
 	for start := int64(0); start < fileSize; start += chunkSize {
@@ -141,7 +141,7 @@ func (c *ClientEphemeralfiles) UploadFileInChunks(aeskey []byte, filePath, targe
 		req.Header.Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, fileSize))
 
 		// Send request
-		resp, err := client.Do(req)
+		resp, err := c.httpClient.Do(req)
 		if err != nil {
 			return fmt.Errorf("error sending request: %w", err)
 		}
@@ -152,7 +152,10 @@ func (c *ClientEphemeralfiles) UploadFileInChunks(aeskey []byte, filePath, targe
 		}
 
 		_ = bar.Add(chunkSize)
-		// fmt.Printf("Uploaded chunk %d-%d of %d bytes\n", start, end, fileSize)
+		c.log.Debug("UploadFileInChunks", slog.Int64("start", start))
+		c.log.Debug("UploadFileInChunks", slog.Int64("end", end))
+		c.log.Debug("UploadFileInChunks", slog.Int64("fileSize", fileSize))
+		c.log.Debug("UploadFileInChunks", slog.Int("chunkSize", len(encryptedChunk)))
 	}
 	bar.Clear()
 	bar.Close()
@@ -165,42 +168,33 @@ func (c *ClientEphemeralfiles) UploadE2E(fileToUpload string) error {
 		fmt.Fprintf(os.Stderr, "Error getting public key: %s\n", err)
 		os.Exit(1)
 	}
-	fmt.Println("File ID: ", fileID)
-	fmt.Println("Public Key: ", pubkey)
+	c.log.Debug("UploadFileInChunks", slog.String("fileID", fileID))
+	c.log.Debug("UploadFileInChunks", slog.String("pubkey", pubkey))
 
 	aesKey, err := GenAESKey32bits()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error generating AES key: %s\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error generating AES key: %w", err)
 	}
-	fmt.Println("AES Key: ", aesKey)
+	c.log.Debug("UploadFileInChunks", slog.String("aesKey", string(aesKey)))
+	c.log.Debug("UploadFileInChunks", slog.String("fileToUpload", fileToUpload))
 	hexString := hex.EncodeToString(aesKey)
+	c.log.Debug("UploadFileInChunks", slog.String("hexString", hexString))
 
-	fmt.Println("aesKey: ", aesKey)
-	// convert aesKey to hexadecimal
-
-	// fmt.Println("encodedAESKey: ", encodedAESKey)
-	fmt.Println("hexString: ", hexString)
 	// encrypt with public key
 	encryptedAESKey, err := EncryptAESKey(pubkey, hexString)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error encrypting AES key: %s\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error encrypting AES key: %w", err)
 	}
-	fmt.Println("Encrypted AES Key: ", encryptedAESKey)
-
+	c.log.Debug("UploadFileInChunks", slog.String("encryptedAESKey", encryptedAESKey))
 	// Send the encrypted AES key to the server
 	err = c.SendAESKey(fileID, encryptedAESKey)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error sending AES key: %s\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error sending AES key: %w", err)
 	}
-
 	// Upload the file
 	err = c.UploadFileInChunks(aesKey, fileToUpload, c.UploadE2EEndpoint(fileID))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error uploading file: %s\n", err)
-		os.Exit(1)
+		return fmt.Errorf("error uploading file: %w", err)
 	}
 	return nil
 }
@@ -240,26 +234,20 @@ func EncryptAES(key []byte, plaintext []byte) ([]byte, error) {
 	// Create new cipher block
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error creating new cipher block: %w", err)
 	}
-
 	// Generate random IV
 	iv := make([]byte, aes.BlockSize)
 	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error generating random IV: %w", err)
 	}
-
 	// Create CTR stream
 	stream := cipher.NewCTR(block, iv)
-
 	// Create buffer for ciphertext that includes space for IV
 	ciphertext := make([]byte, len(iv)+len(plaintext))
-
 	// Copy IV to start of ciphertext
 	copy(ciphertext[:aes.BlockSize], iv)
-
 	// Encrypt plaintext
 	stream.XORKeyStream(ciphertext[aes.BlockSize:], plaintext)
-
 	return ciphertext, nil
 }
