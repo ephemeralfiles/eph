@@ -7,13 +7,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log/slog"
 	"net/http"
 	"os"
 
 	"github.com/ephemeralfiles/eph/pkg/dto"
-	"github.com/schollz/progressbar/v3"
 )
 
 func (c *ClientEphemeralfiles) GetFileInformationEndpoint(fileID string) string {
@@ -109,11 +109,8 @@ func (c *ClientEphemeralfiles) DownloadE2E(fileID string) error {
 	}
 
 	// Create progress bar
-	bar := progressbar.NewOptions64(fileInfo.Size, progressbar.OptionClearOnFinish(),
-		progressbar.OptionShowBytes(true), progressbar.OptionSetWidth(DefaultBarWidth),
-		progressbar.OptionSetDescription("downloading file..."),
-		progressbar.OptionSetVisibility(!c.noProgressBar),
-	)
+	c.InitProgressBar("downloading file...", fileInfo.Size)
+	defer c.CloseProgressBar()
 
 	for i := 0; i < fileInfo.NbParts; i++ {
 		c.log.Debug("DownloadE2E", slog.Int("Part", i))
@@ -121,11 +118,8 @@ func (c *ClientEphemeralfiles) DownloadE2E(fileID string) error {
 		if err != nil {
 			return fmt.Errorf("error downloading part %d: %w", i, err)
 		}
-		_ = bar.Add(chunkSize)
 		c.log.Debug("DownloadE2E part downloaded", slog.Int("Part", i), slog.Int("ChunkSize", chunkSize))
 	}
-	_ = bar.Clear()
-	bar.Close()
 	return nil
 }
 
@@ -168,7 +162,8 @@ func (c *ClientEphemeralfiles) DownloadPartE2E(outputFilePath string, transactio
 	}
 	defer file.Close()
 
-	_, err = file.Write(decryptedChunk)
+	multiW := io.MultiWriter(file, c.bar)
+	_, err = multiW.Write(decryptedChunk)
 	if err != nil {
 		return 0, fmt.Errorf("error writing chunk to file: %w", err)
 	}

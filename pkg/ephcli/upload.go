@@ -7,8 +7,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
-
-	"github.com/schollz/progressbar/v3"
 )
 
 func (c *ClientEphemeralfiles) UploadEndpoint() string {
@@ -24,11 +22,8 @@ func (c *ClientEphemeralfiles) Upload(fileToUpload string) error {
 		return fmt.Errorf("error getting file info: %w", err)
 	}
 
-	bar := progressbar.NewOptions64(stat.Size(), progressbar.OptionClearOnFinish(),
-		progressbar.OptionShowBytes(true), progressbar.OptionSetWidth(DefaultBarWidth),
-		progressbar.OptionSetDescription("uploadding file..."),
-		progressbar.OptionSetVisibility(!c.noProgressBar),
-	)
+	c.InitProgressBar("uploading file...", stat.Size())
+	defer c.CloseProgressBar()
 
 	// Create a multipart form
 	pr, pw := io.Pipe()
@@ -47,7 +42,7 @@ func (c *ClientEphemeralfiles) Upload(fileToUpload string) error {
 			return
 		}
 		defer f.Close()
-		if _, err := io.Copy(io.MultiWriter(part, bar), f); err != nil {
+		if _, err := io.Copy(io.MultiWriter(part, c.bar), f); err != nil {
 			pw.CloseWithError(err) // Properly handle the error
 			return
 		}
@@ -70,7 +65,7 @@ func (c *ClientEphemeralfiles) Upload(fileToUpload string) error {
 
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		_ = bar.RenderBlank()
+		// _ = c.bar.RenderBlank()
 		return parseError(resp)
 	}
 	return nil

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ephemeralfiles/eph/pkg/logger"
+	"github.com/schollz/progressbar/v3"
 )
 
 const DefaultAPIRequestTimeout = 5 * time.Second
@@ -22,6 +23,7 @@ type ClientEphemeralfiles struct {
 	token         string
 	endpoint      string
 	noProgressBar bool
+	bar           *progressbar.ProgressBar
 	log           *slog.Logger
 }
 

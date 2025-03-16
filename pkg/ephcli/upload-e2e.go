@@ -15,7 +15,6 @@ import (
 	"os"
 
 	"github.com/ephemeralfiles/eph/pkg/dto"
-	"github.com/schollz/progressbar/v3"
 )
 
 const (
@@ -84,11 +83,8 @@ func (c *ClientEphemeralfiles) UploadFileInChunks(aeskey []byte, filePath, targe
 	fileSize := fileInfo.Size()
 
 	// Create progress bar
-	bar := progressbar.NewOptions64(fileSize, progressbar.OptionClearOnFinish(),
-		progressbar.OptionShowBytes(true), progressbar.OptionSetWidth(DefaultBarWidth),
-		progressbar.OptionSetDescription("uploadding file..."),
-		progressbar.OptionSetVisibility(!c.noProgressBar),
-	)
+	c.InitProgressBar("uploading file...", fileSize)
+	defer c.CloseProgressBar()
 
 	// Upload file in chunks
 	for start := int64(0); start < fileSize; start += chunkSize {
@@ -151,14 +147,12 @@ func (c *ClientEphemeralfiles) UploadFileInChunks(aeskey []byte, filePath, targe
 			return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 		}
 
-		_ = bar.Add(chunkSize)
+		_ = c.bar.Add(chunkSize)
 		c.log.Debug("UploadFileInChunks", slog.Int64("start", start))
 		c.log.Debug("UploadFileInChunks", slog.Int64("end", end))
 		c.log.Debug("UploadFileInChunks", slog.Int64("fileSize", fileSize))
 		c.log.Debug("UploadFileInChunks", slog.Int("chunkSize", len(encryptedChunk)))
 	}
-	_ = bar.Clear()
-	bar.Close()
 	return nil
 }
 

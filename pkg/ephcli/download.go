@@ -8,8 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/schollz/progressbar/v3"
 )
 
 const (
@@ -55,14 +53,10 @@ func (c *ClientEphemeralfiles) Download(uuidFile string, outputfile string) erro
 	}
 	defer f.Close()
 
+	c.InitProgressBar("downloading file...", totalSize)
+	defer c.CloseProgressBar()
 	if !c.noProgressBar {
-		bar := progressbar.NewOptions64(totalSize,
-			progressbar.OptionClearOnFinish(),
-			progressbar.OptionShowBytes(true),
-			progressbar.OptionSetWidth(DefaultBarWidth),
-			progressbar.OptionSetDescription("downloading "+filename))
-
-		_, err = io.Copy(io.MultiWriter(f, bar), resp.Body)
+		_, err = io.Copy(io.MultiWriter(f, c.bar), resp.Body)
 	} else {
 		_, err = io.Copy(f, resp.Body)
 	}
