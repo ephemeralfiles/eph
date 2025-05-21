@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log/slog"
 	"net/http"
@@ -156,23 +155,30 @@ func (c *ClientEphemeralfiles) DownloadPartE2E(outputFilePath string, transactio
 	}
 
 	// Write decrypted chunk to file
-	file, err := os.OpenFile(outputFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(outputFilePath, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return 0, fmt.Errorf("error opening file: %w", err)
 	}
 	defer file.Close()
 
-	multiW := io.MultiWriter(file, c.bar)
-	_, err = multiW.Write(decryptedChunk)
+	// Seek to the correct position for this part (part * chunkSize)
+	_, err = file.Seek(int64(part)*chunkSize, 0)
+	if err != nil {
+		return 0, fmt.Errorf("error seeking in file: %w", err)
+	}
+
+	// Write the chunk
+	n, err := file.Write(decryptedChunk)
 	if err != nil {
 		return 0, fmt.Errorf("error writing chunk to file: %w", err)
 	}
 
-	stat, err := file.Stat()
-	if err != nil {
-		return 0, fmt.Errorf("error getting file info: %w", err)
+	// Update progress bar
+	if c.bar != nil {
+		_, _ = c.bar.Write(decryptedChunk)
 	}
-	return int(stat.Size()), nil
+
+	return n, nil
 }
 
 func (c *ClientEphemeralfiles) UpdateAESKeyForDownloadTransactionEndpoint(transactionID string) string {

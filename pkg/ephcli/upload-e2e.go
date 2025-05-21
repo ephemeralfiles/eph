@@ -29,39 +29,47 @@ func (c *ClientEphemeralfiles) GetPublicKeyEndpoint() string {
 	return fmt.Sprintf("%s/%s/files", c.endpoint, apiVersion)
 }
 
-func (c *ClientEphemeralfiles) UploadE2EEndpoint(uuid string) string {
-	return fmt.Sprintf("%s/%s/multipart/%s", c.endpoint, apiVersion, uuid)
+func (c *ClientEphemeralfiles) UploadE2EEndpoint(transactionID string) string {
+	return fmt.Sprintf("%s/%s/multipart/%s", c.endpoint, apiVersion, transactionID)
 }
 
-func (c *ClientEphemeralfiles) GetPublicKey() (string, string, error) {
+func (c *ClientEphemeralfiles) GetPublicKey() (string, string, string, error) {
 	req, err := http.NewRequest(http.MethodHead, c.GetPublicKeyEndpoint(), nil)
 	if err != nil {
-		return "", "", fmt.Errorf("error creating request: %w", err)
+		return "", "", "", fmt.Errorf("error creating request: %w", err)
 	}
 	// Set headers
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return "", "", fmt.Errorf("error sending request: %w", err)
+		return "", "", "", fmt.Errorf("error sending request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return "", "", "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
 	// Get Header X-File-Id from Header
 	fileId := resp.Header.Get("X-File-Id")
 	if fileId == "" {
-		return "", "", fmt.Errorf("error reading response: %w", err)
+		return "", "", "", fmt.Errorf("error reading response: %w", err)
 	}
 	// Get Header X-File-Public-Key from Header
 	publicKey := resp.Header.Get("X-File-Public-Key")
 	if publicKey == "" {
-		return "", "", fmt.Errorf("error reading response: %w", err)
+		return "", "", "", fmt.Errorf("error reading response: %w", err)
 	}
-	return fileId, publicKey, nil
+	transactionID := resp.Header.Get("X-Upload-Id")
+	if transactionID == "" {
+		return "", "", "", fmt.Errorf("error reading response: %w", err)
+	}
+
+	c.log.Debug("GetPublicKey", slog.String("X-File-Public-Key", publicKey))
+	c.log.Debug("GetPublicKey", slog.String("X-File-Id", fileId))
+	c.log.Debug("GetPublicKey", slog.String("X-Upload-Id", transactionID))
+	return transactionID, fileId, publicKey, nil
 }
 
 func (c *ClientEphemeralfiles) UploadFileInChunks(aeskey []byte, filePath, targetURL string) error {
@@ -157,9 +165,9 @@ func (c *ClientEphemeralfiles) UploadFileInChunks(aeskey []byte, filePath, targe
 }
 
 func (c *ClientEphemeralfiles) UploadE2E(fileToUpload string) error {
-	fileID, pubkey, err := c.GetPublicKey()
+	transactionID, fileID, pubkey, err := c.GetPublicKey()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error getting public key: %s\n", err)
+		fmt.Fprintf(os.Stderr, "Error getting public key: %s\n", err.Error())
 		os.Exit(1)
 	}
 	c.log.Debug("UploadFileInChunks", slog.String("fileID", fileID))
@@ -181,19 +189,19 @@ func (c *ClientEphemeralfiles) UploadE2E(fileToUpload string) error {
 	}
 	c.log.Debug("UploadFileInChunks", slog.String("encryptedAESKey", encryptedAESKey))
 	// Send the encrypted AES key to the server
-	err = c.SendAESKey(fileID, encryptedAESKey)
+	err = c.SendAESKey(transactionID, fileID, encryptedAESKey)
 	if err != nil {
 		return fmt.Errorf("error sending AES key: %w", err)
 	}
 	// Upload the file
-	err = c.UploadFileInChunks(aesKey, fileToUpload, c.UploadE2EEndpoint(fileID))
+	err = c.UploadFileInChunks(aesKey, fileToUpload, c.UploadE2EEndpoint(transactionID))
 	if err != nil {
 		return fmt.Errorf("error uploading file: %w", err)
 	}
 	return nil
 }
 
-func (c *ClientEphemeralfiles) SendAESKey(fileID, encryptedAESKey string) error {
+func (c *ClientEphemeralfiles) SendAESKey(transactionID, fileID, encryptedAESKey string) error {
 	payload := dto.RequestAESKey{
 		AESKey: encryptedAESKey,
 	}
@@ -203,7 +211,7 @@ func (c *ClientEphemeralfiles) SendAESKey(fileID, encryptedAESKey string) error 
 	if err != nil {
 		return fmt.Errorf("error marshalling payload: %w", err)
 	}
-	req, err := http.NewRequest(http.MethodPost, c.SendAESKeyEndpoint(fileID), bytes.NewBuffer(body))
+	req, err := http.NewRequest(http.MethodPost, c.SendAESKeyEndpoint(transactionID), bytes.NewBuffer(body))
 	if err != nil {
 		return fmt.Errorf("error creating request: %w", err)
 	}
