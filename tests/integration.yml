@@ -17,7 +17,7 @@ testcases:
   steps:
   - type: exec
     script: |
-      test ! -f /tmp/data && dd if=/dev/urandom of=/tmp/data bs=2048 count=1048576
+      test ! -f /tmp/data && dd if=/dev/urandom of=/tmp/data bs=2048 count=1048576 || echo "File /tmp/data already exists, skipping creation"
     info: "result.systemout is {{.result.systemout}}"
     assertions:
     - result.code ShouldEqual 0
@@ -31,5 +31,157 @@ testcases:
       cd ..
       go run . up -i /tmp/data
     info: "result.systemout is {{.result.systemout}}"
+    assertions:
+    - result.code ShouldEqual 0
+
+- name: Get file list and extract big file ID
+  steps:
+  - type: exec
+    script: |
+      export EPHEMERALFILES_TOKEN={{.JWTTOKEN1}}
+      export EPHEMERALFILES_ENDPOINT={{.ENDPOINT}}
+      cd ..
+      go run . ls -r json | jq -r '.[] | select(.size > 1000000000) | .file_id' | head -1 > /tmp/big_file_id.txt
+      cat /tmp/big_file_id.txt
+    info: "Big file ID: {{.result.systemout}}"
+    assertions:
+    - result.code ShouldEqual 0
+    - result.systemout ShouldNotBeEmpty
+    vars:
+      big_file_id:
+        from: result.systemout
+
+- name: Test download E2E of big file
+  steps:
+  - type: exec
+    script: |
+      export EPHEMERALFILES_TOKEN={{.JWTTOKEN1}}
+      export EPHEMERALFILES_ENDPOINT={{.ENDPOINT}}
+      cd ..
+      BIG_FILE_ID=$(cat /tmp/big_file_id.txt | tr -d '\n')
+      go run . dle2e -i "$BIG_FILE_ID"
+    info: "Download E2E result: {{.result.systemout}}"
+    assertions:
+    - result.code ShouldEqual 0
+
+- name: Create small test file
+  steps:
+  - type: exec
+    script: |
+      echo "This is a small test file for integration testing" > /tmp/small_test_file.txt
+      ls -la /tmp/small_test_file.txt
+    info: "Small file created: {{.result.systemout}}"
+    assertions:
+    - result.code ShouldEqual 0
+
+- name: Test upload small file
+  steps:
+  - type: exec
+    script: |
+      export EPHEMERALFILES_TOKEN={{.JWTTOKEN1}}
+      export EPHEMERALFILES_ENDPOINT={{.ENDPOINT}}
+      cd ..
+      go run . up -i /tmp/small_test_file.txt
+    info: "Small file upload result: {{.result.systemout}}"
+    assertions:
+    - result.code ShouldEqual 0
+
+- name: List files and verify count (should be 3 files)
+  steps:
+  - type: exec
+    script: |
+      export EPHEMERALFILES_TOKEN={{.JWTTOKEN1}}
+      export EPHEMERALFILES_ENDPOINT={{.ENDPOINT}}
+      cd ..
+      go run . ls
+      echo "--- JSON output for counting ---"
+      FILE_COUNT=$(go run . ls -r json | jq -r '. | length')
+      echo "FILES_COUNT=$FILE_COUNT"
+    info: "File list and count: {{.result.systemout}}"
+    assertions:
+    - result.code ShouldEqual 0
+    - result.systemout ShouldContainSubstring "FILES_COUNT=3"
+
+- name: Get small file ID for removal
+  steps:
+  - type: exec
+    script: |
+      export EPHEMERALFILES_TOKEN={{.JWTTOKEN1}}
+      export EPHEMERALFILES_ENDPOINT={{.ENDPOINT}}
+      cd ..
+      go run . ls -r json | jq -r '.[] | select(.filename == "small_test_file.txt") | .file_id' > /tmp/small_file_id.txt
+      cat /tmp/small_file_id.txt
+    info: "Small file ID: {{.result.systemout}}"
+    assertions:
+    - result.code ShouldEqual 0
+    - result.systemout ShouldNotBeEmpty
+
+- name: Test remove small file
+  steps:
+  - type: exec
+    script: |
+      export EPHEMERALFILES_TOKEN={{.JWTTOKEN1}}
+      export EPHEMERALFILES_ENDPOINT={{.ENDPOINT}}
+      cd ..
+      SMALL_FILE_ID=$(cat /tmp/small_file_id.txt | tr -d '\n')
+      go run . rm -i "$SMALL_FILE_ID"
+    info: "Remove result: {{.result.systemout}}"
+    assertions:
+    - result.code ShouldEqual 0
+
+- name: List files and verify count after removal (should be 2 files)
+  steps:
+  - type: exec
+    script: |
+      export EPHEMERALFILES_TOKEN={{.JWTTOKEN1}}
+      export EPHEMERALFILES_ENDPOINT={{.ENDPOINT}}
+      cd ..
+      go run . ls
+      echo "--- JSON output for counting ---"
+      FILE_COUNT=$(go run . ls -r json | jq -r '. | length')
+      echo "FILES_AFTER_REMOVAL=$FILE_COUNT"
+    info: "File list after removal: {{.result.systemout}}"
+    assertions:
+    - result.code ShouldEqual 0
+    - result.systemout ShouldContainSubstring "FILES_AFTER_REMOVAL=2"
+
+- name: Test prune all files
+  steps:
+  - type: exec
+    script: |
+      export EPHEMERALFILES_TOKEN={{.JWTTOKEN1}}
+      export EPHEMERALFILES_ENDPOINT={{.ENDPOINT}}
+      cd ..
+      go run . prune
+    info: "prune result: {{.result.systemout}}"
+    assertions:
+    - result.code ShouldEqual 0
+
+- name: Verify prune completed (should be 0 files)
+  steps:
+  - type: exec
+    script: |
+      export EPHEMERALFILES_TOKEN={{.JWTTOKEN1}}
+      export EPHEMERALFILES_ENDPOINT={{.ENDPOINT}}
+      cd ..
+      go run . ls
+      echo "--- JSON output for counting ---"
+      FILE_COUNT=$(go run . ls -r json | jq '. | length' 2>/dev/null)
+      if [ -z "$FILE_COUNT" ]; then
+        FILE_COUNT=0
+      fi
+      echo "FILES_AFTER_prune=$FILE_COUNT"
+    info: "File list after prune: {{.result.systemout}}"
+    assertions:
+    - result.code ShouldEqual 0
+    - result.systemout ShouldContainSubstring "FILES_AFTER_prune=0"
+
+- name: Cleanup temporary files
+  steps:
+  - type: exec
+    script: |
+      rm -f /tmp/big_file_id.txt /tmp/small_file_id.txt /tmp/small_test_file.txt /tmp/data
+      echo "Cleanup completed"
+    info: "Cleanup: {{.result.systemout}}"
     assertions:
     - result.code ShouldEqual 0

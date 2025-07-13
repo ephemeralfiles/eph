@@ -28,7 +28,7 @@ The endpoint is the URL of the ephemeralfiles server.
 		}
 		cfg.Token = token
 		cfg.Endpoint = endpoint
-		err := cfg.SaveConfiguration()
+		err := cfg.SaveConfiguration(configurationFile)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error saving configuration: %s\n", err)
 			os.Exit(1)

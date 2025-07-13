@@ -45,7 +45,7 @@ func TestDownload(t *testing.T) {
 		ts := httptest.NewTLSServer(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				// Check the method
-				assert.Equal(t, "GET", r.Method)
+				assert.Equal(t, http.MethodGet, r.Method)
 				// Check the token
 				assert.Equal(t, "Bearer token", r.Header.Get("Authorization"))
 				// stream the file

@@ -1,8 +1,12 @@
 package ephcli
 
 import (
+	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/ephemeralfiles/eph/pkg/logger"
+	"github.com/schollz/progressbar/v3"
 )
 
 const DefaultAPIRequestTimeout = 5 * time.Second
@@ -13,31 +17,14 @@ const apiVersion string = "api/v1"
 // defaultEndpoint is the default endpoint of the API
 const defaultEndpoint string = "https://ephemeralfiles.com"
 
-// APIError is the error response from the API
-type APIError struct {
-	Err     bool   `json:"error"`
-	Message string `json:"msg"`
-}
-
-// File is the struct that represents a file in the API
-type File struct {
-	Idfile          string    `json:"idfile"`
-	FileName        string    `json:"filename"`
-	Size            int64     `json:"size"`
-	UpdateDateBegin time.Time `json:"update_date_egin"`
-	UpdateDateEnd   time.Time `json:"update_date_end"`
-	ExpirationDate  time.Time `json:"expiration_date"`
-}
-
-// FileList is a list of files
-type FileList []File
-
 // ClientEphemeralfiles is the client to interact with the API
 type ClientEphemeralfiles struct {
 	httpClient    *http.Client
 	token         string
 	endpoint      string
 	noProgressBar bool
+	bar           *progressbar.ProgressBar
+	log           *slog.Logger
 }
 
 // NewClient creates a new client
@@ -47,7 +34,20 @@ func NewClient(token string) *ClientEphemeralfiles {
 		token:         token,
 		endpoint:      defaultEndpoint,
 		noProgressBar: false, // By default, the progress bar is active
+		log:           logger.NoLogger(),
 	}
+}
+
+// SetLogger sets the logger
+func (c *ClientEphemeralfiles) SetLogger(logger *slog.Logger) {
+	c.log = logger
+}
+
+// SetDebug sets the logger to debug
+// Disable the progress bar
+func (c *ClientEphemeralfiles) SetDebug() {
+	c.log = logger.NewLogger("debug")
+	c.noProgressBar = true
 }
 
 func (c *ClientEphemeralfiles) DisableProgressBar() {

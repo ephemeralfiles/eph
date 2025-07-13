@@ -8,10 +8,10 @@ import (
 )
 
 // uploadCmd represents the get command
-var uploadCmd = &cobra.Command{
-	Use:   "up",
-	Short: "upload to ephemeralfiles",
-	Long: `upload to ephemeralfiles.
+var uploadE2ECmd = &cobra.Command{
+	Use:   "upe2e",
+	Short: "upload to ephemeralfiles using e2e encryption",
+	Long: `upload to ephemeralfiles using e2e encryption.
 The file is required.
 `,
 	Run: func(cmd *cobra.Command, _ []string) {
@@ -22,7 +22,7 @@ The file is required.
 			os.Exit(1)
 		}
 
-		err := c.Upload(fileToUpload)
+		err := c.UploadE2E(fileToUpload)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error uploading file: %s\n", err)
 			os.Exit(1)

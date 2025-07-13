@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/ephemeralfiles/eph/pkg/config"
-	"github.com/ephemeralfiles/eph/pkg/ephcli"
 	"github.com/spf13/cobra"
 )
 
@@ -17,17 +15,7 @@ var purgeCmd = &cobra.Command{
 `,
 	Run: func(_ *cobra.Command, _ []string) {
 		var gotError bool
-		cfg := config.NewConfig()
-		err := cfg.LoadConfiguration()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading configuration: %s\n", err)
-			os.Exit(1)
-		}
-
-		c := ephcli.NewClient(cfg.Token)
-		if cfg.Endpoint != "" {
-			c.SetEndpoint(cfg.Endpoint)
-		}
+		InitClient()
 		files, err := c.Fetch()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error fetching files: %s\n", err)
@@ -38,14 +26,14 @@ var purgeCmd = &cobra.Command{
 		}
 
 		for _, file := range files {
-			err = c.Remove(file.Idfile)
+			err = c.Remove(file.FileID)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error removing file %s: %s\n", file.Idfile, err)
+				fmt.Fprintf(os.Stderr, "Error removing file %s: %s\n", file.FileID, err)
 				gotError = true
 
 				continue
 			}
-			fmt.Printf("File %s removed\n", file.Idfile)
+			fmt.Printf("File %s removed\n", file.FileID)
 		}
 		if gotError {
 			os.Exit(1)

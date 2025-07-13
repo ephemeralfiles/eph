@@ -5,7 +5,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/ephemeralfiles/eph/pkg/config"
 	"github.com/ephemeralfiles/eph/pkg/ephcli"
 	"github.com/spf13/cobra"
 )
@@ -19,12 +18,7 @@ It will display the current configuration and the box informations.
 If the token is expired, it will exit with status 1.
 `,
 	Run: func(_ *cobra.Command, _ []string) {
-		cfg := config.NewConfig()
-		err := cfg.LoadConfiguration()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading configuration: %s\n", err)
-			os.Exit(1)
-		}
+		InitClient()
 		email, expDate, err := ephcli.Whoami(cfg.Token)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error getting informations with current configuration: %s\n", err)
@@ -37,10 +31,6 @@ If the token is expired, it will exit with status 1.
 			os.Exit(1)
 		}
 
-		c := ephcli.NewClient(cfg.Token)
-		if cfg.Endpoint != "" {
-			c.SetEndpoint(cfg.Endpoint)
-		}
 		boxInfos, err := c.GetBoxInfos()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error getting box informations: %s\n", err)
