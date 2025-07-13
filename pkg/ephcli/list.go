@@ -1,7 +1,6 @@
 package ephcli
 
 import (
-	"context"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -21,25 +20,17 @@ func (c *ClientEphemeralfiles) FilesEndpoint() string {
 
 // Fetch retrieves the list of files from the server
 func (c *ClientEphemeralfiles) Fetch() (dto.FileList, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), DefaultAPIRequestTimeout)
-	defer cancel()
-
-	url := c.FilesEndpoint()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, cancel, err := c.createRequestWithTimeout(http.MethodGet, c.FilesEndpoint(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
-	req.Header.Set("Authorization", "Bearer "+c.token)
-	resp, err := c.httpClient.Do(req)
+	defer cancel()
+
+	resp, err := c.doRequestWithAuth(req)
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %w", err)
 	}
-
 	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, parseError(resp)
-	}
 
 	var fl dto.FileList
 	err = json.NewDecoder(resp.Body).Decode(&fl)

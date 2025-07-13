@@ -1,9 +1,7 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
-
+	"github.com/ephemeralfiles/eph/pkg/cmdutil"
 	"github.com/spf13/cobra"
 )
 
@@ -16,16 +14,11 @@ The file is required.
 `,
 	Run: func(cmd *cobra.Command, _ []string) {
 		InitClient()
-		if fileToUpload == "" {
-			fmt.Fprintf(os.Stderr, "file is required\n")
-			_ = cmd.Usage()
-			os.Exit(1)
-		}
+		cmdutil.ValidateRequired(fileToUpload, "file", cmd)
 
 		err := c.Upload(fileToUpload)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error uploading file: %s\n", err)
-			os.Exit(1)
+			cmdutil.HandleError("Error uploading file", err)
 		}
 	},
 }
