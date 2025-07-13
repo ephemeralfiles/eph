@@ -1,9 +1,7 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
-
+	"github.com/ephemeralfiles/eph/pkg/cmdutil"
 	"github.com/spf13/cobra"
 )
 
@@ -15,16 +13,11 @@ var downloadCmd = &cobra.Command{
 `,
 	Run: func(cmd *cobra.Command, _ []string) {
 		InitClient()
-		if uuidFile == "" {
-			fmt.Fprintf(os.Stderr, "uuid is required\n")
-			_ = cmd.Usage()
-			os.Exit(1)
-		}
+		cmdutil.ValidateRequired(uuidFile, "uuid", cmd)
 
 		err := c.Download(uuidFile, "")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error downloading file: %s\n", err)
-			os.Exit(1)
+			cmdutil.HandleError("Error downloading file", err)
 		}
 	},
 }

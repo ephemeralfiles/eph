@@ -1,10 +1,8 @@
 package ephcli
 
 import (
-	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -87,22 +85,17 @@ func (c *ClientEphemeralfiles) DownloadE2E(fileID string) error {
 	}
 	c.log.Debug("DownloadE2E", slog.String("TransactionID", transactionID), slog.String("PublicKey", pubkey))
 
-	aesKey, err := GenAESKey32bits()
+	// Generate and encrypt AES key using shared utility
+	keyBundle, err := GenerateAndEncryptAESKey(pubkey)
 	if err != nil {
-		return fmt.Errorf("error generating AES key: %w", err)
+		return fmt.Errorf("error generating and encrypting AES key: %w", err)
 	}
-	hexString := hex.EncodeToString(aesKey)
-	c.log.Debug("DownloadE2E", slog.String("AESKey", string(aesKey)), slog.String("HexString", hexString))
 
-	// encrypt with public key
-	encryptedAESKey, err := EncryptAESKey(pubkey, hexString)
-	if err != nil {
-		return fmt.Errorf("error encrypting AES key: %w", err)
-	}
-	c.log.Debug("DownloadE2E", slog.String("EncryptedAESKey", encryptedAESKey))
+	c.log.Debug("DownloadE2E", slog.String("AESKey", string(keyBundle.AESKey)), slog.String("HexString", keyBundle.HexString))
+	c.log.Debug("DownloadE2E", slog.String("EncryptedAESKey", keyBundle.EncryptedAESKey))
 
-	// Send the encrypted AES key to the server
-	err = c.SendAESKeyForDownloadTransaction(transactionID, encryptedAESKey)
+	// Send the encrypted AES key to the server using shared utility
+	err = c.SendAESKeyToEndpoint(c.UpdateAESKeyForDownloadTransactionEndpoint(transactionID), keyBundle.EncryptedAESKey)
 	if err != nil {
 		return fmt.Errorf("error sending AES key: %w", err)
 	}
@@ -113,7 +106,7 @@ func (c *ClientEphemeralfiles) DownloadE2E(fileID string) error {
 
 	for i := 0; i < fileInfo.NbParts; i++ {
 		c.log.Debug("DownloadE2E", slog.Int("Part", i))
-		chunkSize, err := c.DownloadPartE2E(fileInfo.Filename, transactionID, aesKey, i)
+		chunkSize, err := c.DownloadPartE2E(fileInfo.Filename, transactionID, keyBundle.AESKey, i)
 		if err != nil {
 			return fmt.Errorf("error downloading part %d: %w", i, err)
 		}
@@ -185,34 +178,6 @@ func (c *ClientEphemeralfiles) UpdateAESKeyForDownloadTransactionEndpoint(transa
 	return fmt.Sprintf("%s/%s/download-transaction/%s/aeskey", c.endpoint, apiVersion, transactionID)
 }
 
-func (c *ClientEphemeralfiles) SendAESKeyForDownloadTransaction(transactionID, encryptedAESKey string) error {
-	payload := dto.RequestAESKey{
-		AESKey: encryptedAESKey,
-	}
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("error marshalling payload: %w", err)
-	}
-	req, err := http.NewRequest(http.MethodPost, c.UpdateAESKeyForDownloadTransactionEndpoint(transactionID), bytes.NewBuffer(body))
-	if err != nil {
-		return fmt.Errorf("error creating request: %w", err)
-	}
-	// Set headers
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("error sending request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	return nil
-}
 
 func DecryptAES(key []byte, ciphertext []byte) ([]byte, error) {
 	// Check if ciphertext is too short

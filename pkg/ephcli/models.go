@@ -1,6 +1,8 @@
 package ephcli
 
 import (
+	"context"
+	"io"
 	"log/slog"
 	"net/http"
 	"time"
@@ -60,4 +62,47 @@ func (c *ClientEphemeralfiles) SetEndpoint(endpoint string) {
 
 func (c *ClientEphemeralfiles) SetHTTPClient(client *http.Client) {
 	c.httpClient = client
+}
+
+// HTTP utility methods to reduce duplication
+
+// addAuthHeader adds the Bearer token to the request
+func (c *ClientEphemeralfiles) addAuthHeader(req *http.Request) {
+	req.Header.Set("Authorization", "Bearer "+c.token)
+}
+
+// checkResponseStatus checks if the response status is OK and handles errors
+func (c *ClientEphemeralfiles) checkResponseStatus(resp *http.Response) error {
+	if resp.StatusCode != http.StatusOK {
+		return parseError(resp)
+	}
+	return nil
+}
+
+// createRequestWithTimeout creates an HTTP request with the default timeout context
+func (c *ClientEphemeralfiles) createRequestWithTimeout(method, url string, body io.Reader) (*http.Request, context.CancelFunc, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultAPIRequestTimeout)
+	req, err := http.NewRequestWithContext(ctx, method, url, body)
+	if err != nil {
+		cancel()
+		return nil, nil, err
+	}
+	return req, cancel, nil
+}
+
+// doRequestWithAuth performs an HTTP request with authentication and status checking
+func (c *ClientEphemeralfiles) doRequestWithAuth(req *http.Request) (*http.Response, error) {
+	c.addAuthHeader(req)
+	
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	
+	if err := c.checkResponseStatus(resp); err != nil {
+		resp.Body.Close()
+		return nil, err
+	}
+	
+	return resp, nil
 }

@@ -5,16 +5,12 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"os"
-
-	"github.com/ephemeralfiles/eph/pkg/dto"
 )
 
 const (
@@ -170,67 +166,34 @@ func (c *ClientEphemeralfiles) UploadE2E(fileToUpload string) error {
 		fmt.Fprintf(os.Stderr, "Error getting public key: %s\n", err.Error())
 		os.Exit(1)
 	}
-	c.log.Debug("UploadFileInChunks", slog.String("fileID", fileID))
-	c.log.Debug("UploadFileInChunks", slog.String("pubkey", pubkey))
+	c.log.Debug("UploadE2E", slog.String("fileID", fileID))
+	c.log.Debug("UploadE2E", slog.String("pubkey", pubkey))
 
-	aesKey, err := GenAESKey32bits()
+	// Generate and encrypt AES key using shared utility
+	keyBundle, err := GenerateAndEncryptAESKey(pubkey)
 	if err != nil {
-		return fmt.Errorf("error generating AES key: %w", err)
+		return fmt.Errorf("error generating and encrypting AES key: %w", err)
 	}
-	c.log.Debug("UploadFileInChunks", slog.String("aesKey", string(aesKey)))
-	c.log.Debug("UploadFileInChunks", slog.String("fileToUpload", fileToUpload))
-	hexString := hex.EncodeToString(aesKey)
-	c.log.Debug("UploadFileInChunks", slog.String("hexString", hexString))
+	
+	c.log.Debug("UploadE2E", slog.String("aesKey", string(keyBundle.AESKey)))
+	c.log.Debug("UploadE2E", slog.String("hexString", keyBundle.HexString))
+	c.log.Debug("UploadE2E", slog.String("encryptedAESKey", keyBundle.EncryptedAESKey))
+	c.log.Debug("UploadE2E", slog.String("fileToUpload", fileToUpload))
 
-	// encrypt with public key
-	encryptedAESKey, err := EncryptAESKey(pubkey, hexString)
-	if err != nil {
-		return fmt.Errorf("error encrypting AES key: %w", err)
-	}
-	c.log.Debug("UploadFileInChunks", slog.String("encryptedAESKey", encryptedAESKey))
-	// Send the encrypted AES key to the server
-	err = c.SendAESKey(transactionID, fileID, encryptedAESKey)
+	// Send the encrypted AES key to the server using shared utility
+	err = c.SendAESKeyToEndpoint(c.SendAESKeyEndpoint(transactionID), keyBundle.EncryptedAESKey)
 	if err != nil {
 		return fmt.Errorf("error sending AES key: %w", err)
 	}
+	
 	// Upload the file
-	err = c.UploadFileInChunks(aesKey, fileToUpload, c.UploadE2EEndpoint(transactionID))
+	err = c.UploadFileInChunks(keyBundle.AESKey, fileToUpload, c.UploadE2EEndpoint(transactionID))
 	if err != nil {
 		return fmt.Errorf("error uploading file: %w", err)
 	}
 	return nil
 }
 
-func (c *ClientEphemeralfiles) SendAESKey(transactionID, fileID, encryptedAESKey string) error {
-	payload := dto.RequestAESKey{
-		AESKey: encryptedAESKey,
-	}
-	// Send request
-	// marshal payload
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("error marshalling payload: %w", err)
-	}
-	req, err := http.NewRequest(http.MethodPost, c.SendAESKeyEndpoint(transactionID), bytes.NewBuffer(body))
-	if err != nil {
-		return fmt.Errorf("error creating request: %w", err)
-	}
-	// Set headers
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("error sending request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	return nil
-}
 
 func EncryptAES(key []byte, plaintext []byte) ([]byte, error) {
 	// Create new cipher block
