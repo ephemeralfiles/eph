@@ -20,8 +20,8 @@ type APIError struct {
 
 // File is the struct that represents a file in the API
 type File struct {
-	FileID          string    `json:"fileid"`
-	OwnerID         string    `json:"ownerid"`
+	FileID          string    `json:"file_id"`
+	OwnerID         string    `json:"owner_id"`
 	FileName        string    `json:"filename"`
 	Size            int64     `json:"size"`
 	UpdateDateBegin time.Time `json:"update_date_begin"`
