@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// listCmd represents the get command
+// listCmd represents the get command.
 var listCmd = &cobra.Command{
 	Use:   "ls",
 	Short: "list files",

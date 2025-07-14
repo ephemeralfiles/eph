@@ -5,7 +5,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// uploadCmd represents the get command
+// uploadCmd represents the upload command.
 var uploadCmd = &cobra.Command{
 	Use:   "up",
 	Short: "upload to ephemeralfiles",

@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// purgeCmd represents the get command
+// purgeCmd represents the get command.
 var purgeCmd = &cobra.Command{
 	Use:   "prune",
 	Short: "delete all files",

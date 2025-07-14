@@ -14,10 +14,11 @@ import (
 )
 
 const (
+	// WritablePermission is the file permission used for checking write access.
 	WritablePermission = 0666
 )
 
-// versionCmd represents the version command
+// autoupdateCmd represents the autoupdate command.
 var autoupdateCmd = &cobra.Command{
 	Use:   "autoupdate",
 	Short: "autoupdate binary",
@@ -59,7 +60,7 @@ var autoupdateCmd = &cobra.Command{
 	},
 }
 
-// IsLastVersion checks if the actual version is the last version from github
+// IsLastVersion checks if the actual version is the last version from github.
 func IsLastVersion(lastVersionFromGithub string) bool {
 	if version == "development" {
 		return true
@@ -73,13 +74,18 @@ func IsLastVersion(lastVersionFromGithub string) bool {
 func checkIfBinaryIsWritable(filePath string) bool {
 	// Attempt to open the file with read-write permissions without truncating it.
 	// This is a simple way to check for writability without modifying the file.
+	// #nosec G304 -- filePath is controlled by the application, checking binary permissions
 	file, err := os.OpenFile(filePath, os.O_WRONLY, WritablePermission)
 	if err != nil {
 		// If there's an error opening the file with write permissions, it's not writable.
 		// This could be due to the file not existing, not having write permissions, etc.
 		return false
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to close file: %v\n", closeErr)
+		}
+	}()
 
 	// If the file can be opened with write permissions, it's writable.
 	return true
@@ -119,11 +125,12 @@ func autoUpdateBinary(lastVersionFromGithub string) error {
 	return DoUpdate(url)
 }
 
+// GenerateBinaryURL generates the download URL for a binary from GitHub releases.
 func GenerateBinaryURL(repository string, version string, os string, arch string) string {
 	return fmt.Sprintf("https://github.com/%s/releases/download/v%s/eph_%s_%s_%s", repository, version, version, os, arch)
 }
 
-// DoUpdate updates the binary from the url
+// DoUpdate updates the binary from the url.
 func DoUpdate(url string) error {
 	const defaultTimeout = 5 * time.Minute
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(defaultTimeout))
@@ -136,7 +143,11 @@ func DoUpdate(url string) error {
 	if err != nil {
 		return fmt.Errorf("error while downloading binary: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			fmt.Printf("Warning: failed to close response body: %v\n", closeErr)
+		}
+	}()
 	err = selfupdate.Apply(resp.Body, selfupdate.Options{})
 	if err != nil {
 		return fmt.Errorf("error while updating binary: %w", err)

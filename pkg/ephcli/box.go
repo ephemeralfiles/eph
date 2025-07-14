@@ -7,12 +7,14 @@ import (
 	"net/http"
 )
 
+// Box represents storage capacity and usage information for a user's box.
 type Box struct {
 	CapacityMb  int64 `json:"capacity_mb"`
 	UsedMb      int64 `json:"used_mb"`
 	RemainingMb int64 `json:"remaining_mb"`
 }
 
+// GetBoxInfos retrieves storage capacity and usage information for the current user's box.
 func (c *ClientEphemeralfiles) GetBoxInfos() (*Box, error) {
 	var b Box
 
@@ -36,7 +38,9 @@ func (c *ClientEphemeralfiles) GetBoxInfos() (*Box, error) {
 		return nil, fmt.Errorf("error sending request: %w", err)
 	}
 
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, parseError(resp)

@@ -1,3 +1,4 @@
+// Package logger provides structured logging utilities for the ephemeral files CLI.
 package logger
 
 import (
@@ -9,7 +10,7 @@ import (
 // NewLogger creates a new logger
 // logLevel is the level of logging
 // Possible values of logLevel are: "debug", "info", "warn", "error"
-// Default value is "info"
+// Default value is "info".
 func NewLogger(logLevel string) *slog.Logger {
 	var level slog.Level
 	switch logLevel {
@@ -32,7 +33,7 @@ func NewLogger(logLevel string) *slog.Logger {
 	return logger
 }
 
-// NoLogger creates a logger that does not log anything
+// NoLogger creates a logger that does not log anything.
 func NoLogger() *slog.Logger {
 	noLogger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{
 		Level:     slog.LevelDebug,

@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// getCmd represents the get command
+// removeCmd represents the remove command.
 var removeCmd = &cobra.Command{
 	Use:   "rm",
 	Short: "remove file from ephemeralfiles",

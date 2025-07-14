@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -13,12 +14,12 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// FilesEndpoint returns the endpoint for the files
+// FilesEndpoint returns the endpoint for the files.
 func (c *ClientEphemeralfiles) FilesEndpoint() string {
 	return fmt.Sprintf("%s/%s/files", c.endpoint, apiVersion)
 }
 
-// Fetch retrieves the list of files from the server
+// Fetch retrieves the list of files from the server.
 func (c *ClientEphemeralfiles) Fetch() (dto.FileList, error) {
 	req, cancel, err := c.createRequestWithTimeout(http.MethodGet, c.FilesEndpoint(), nil)
 	if err != nil {
@@ -30,7 +31,11 @@ func (c *ClientEphemeralfiles) Fetch() (dto.FileList, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			c.log.Debug("Warning: failed to close response body", slog.String("error", closeErr.Error()))
+		}
+	}()
 
 	var fl dto.FileList
 	err = json.NewDecoder(resp.Body).Decode(&fl)
@@ -44,7 +49,7 @@ func (c *ClientEphemeralfiles) Fetch() (dto.FileList, error) {
 	return fl, nil
 }
 
-// Print prints the list of files as a table
+// Print prints the list of files as a table.
 func Print(fl *dto.FileList) error {
 	tData := pterm.TableData{
 		{"ID", "Filename", "Size", "Expiration date"},
@@ -61,7 +66,7 @@ func Print(fl *dto.FileList) error {
 	return nil
 }
 
-// PrintCSV prints the list of files as a CSV
+// PrintCSV prints the list of files as a CSV.
 func PrintCSV(fl *dto.FileList) error {
 	csvwriter := csv.NewWriter(os.Stdout)
 	err := csvwriter.Write([]string{"ID", "Filename", "Size", "Expiration date"})
@@ -81,7 +86,7 @@ func PrintCSV(fl *dto.FileList) error {
 	return nil
 }
 
-// PrintJSON prints the list of files as JSON
+// PrintJSON prints the list of files as JSON.
 func PrintJSON(fl *dto.FileList) error {
 	err := json.NewEncoder(os.Stdout).Encode(fl)
 	if err != nil {
@@ -90,7 +95,7 @@ func PrintJSON(fl *dto.FileList) error {
 	return nil
 }
 
-// PrintYAML prints the list of files as YAML
+// PrintYAML prints the list of files as YAML.
 func PrintYAML(fl *dto.FileList) error {
 	yamlData, err := yaml.Marshal(fl)
 	if err != nil {

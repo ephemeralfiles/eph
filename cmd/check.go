@@ -1,3 +1,6 @@
+// Package cmd provides the command-line interface commands for the eph CLI tool.
+// It includes commands for file operations, configuration management, and utility functions
+// for interacting with the ephemeralfiles.com service.
 package cmd
 
 import (
