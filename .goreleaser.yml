@@ -15,7 +15,6 @@ builds:
       - netbsd
       - openbsd
       - freebsd
-      - solaris
     goarch:
       - amd64
       - arm
