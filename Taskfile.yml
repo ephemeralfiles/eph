@@ -12,7 +12,7 @@ tasks:
     cmds:
       - task -a
 
-  linters:
+  linter:
     desc: "Run the linters"
     cmds:
       - golangci-lint run  # golangci-lint run --enable-only paralleltest
