@@ -11,9 +11,11 @@ import (
 )
 
 const (
+	// DefaultBarWidth is the default width for progress bars.
 	DefaultBarWidth = 50
 )
 
+// DownloadEndpoint returns the API endpoint URL for downloading a file by UUID.
 func (c *ClientEphemeralfiles) DownloadEndpoint(uuidFile string) string {
 	return fmt.Sprintf("%s/%s/download/%s", c.endpoint, apiVersion, uuidFile)
 }
@@ -21,7 +23,7 @@ func (c *ClientEphemeralfiles) DownloadEndpoint(uuidFile string) string {
 // Download downloads a file from the server
 // and saves it to the outputfile
 // If the outputfile is empty, the file will be saved to the current directory
-// with the same name as the file on the server (retrieving the name from the Content-Disposition header)
+// with the same name as the file on the server (retrieving the name from the Content-Disposition header).
 func (c *ClientEphemeralfiles) Download(uuidFile string, outputfile string) error {
 	var filename string
 	url := c.DownloadEndpoint(uuidFile)
@@ -38,7 +40,9 @@ func (c *ClientEphemeralfiles) Download(uuidFile string, outputfile string) erro
 		return fmt.Errorf("error sending request: %w", err)
 	}
 
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return parseError(resp)
@@ -47,11 +51,14 @@ func (c *ClientEphemeralfiles) Download(uuidFile string, outputfile string) erro
 	filename = c.getFileName(resp, outputfile)
 	totalSize := resp.ContentLength
 
+	// #nosec G304 -- filename is derived from server response headers for downloads
 	f, err := os.Create(filename)
 	if err != nil {
 		return fmt.Errorf("error creating file: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	c.InitProgressBar("downloading file...", totalSize)
 	defer c.CloseProgressBar()
@@ -68,7 +75,7 @@ func (c *ClientEphemeralfiles) Download(uuidFile string, outputfile string) erro
 
 // getFileName returns outputFileName if not empty
 // If empty, try to retrieve the filename from the Content-Disposition header
-// If not present, return the last part of the URL
+// If not present, return the last part of the URL.
 func (c *ClientEphemeralfiles) getFileName(resp *http.Response, outputfileName string) string {
 	const defaultContentDispositionLength = 2
 	var filename string

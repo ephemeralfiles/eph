@@ -11,7 +11,9 @@ import (
 )
 
 const (
+	// GithubRepository is the GitHub repository identifier for self-updates.
 	GithubRepository = "ephemeralfiles/eph"
+	// DefaultEndpoint is the default API endpoint for ephemeralfiles.
 	DefaultEndpoint  = "https://api.ephemeralfiles.com"
 )
 
@@ -31,13 +33,14 @@ var (
 	c   *ephcli.ClientEphemeralfiles
 )
 
-// rootCmd represents the base command when called without any subcommands
+// rootCmd represents the base command when called without any subcommands.
 var rootCmd = &cobra.Command{
 	Use:   "eph",
 	Short: "ephemeralfiles command line interface",
 	Long:  `ephemeralfiles command line interface`,
 }
 
+// Execute runs the root command and handles any execution errors.
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
@@ -46,10 +49,9 @@ func Execute() {
 }
 
 func init() {
-	homedir, err := os.UserHomeDir()
+	_, err := os.UserHomeDir()
 	if err != nil {
-		homedir = os.Getenv("HOME")
-		if homedir == "" {
+		if homeEnv := os.Getenv("HOME"); homeEnv == "" {
 			fmt.Println("warn: $HOME not set")
 		}
 	}
@@ -95,7 +97,7 @@ func init() {
 	}
 }
 
-// InitClient initializes the client
+// InitClient initializes the client.
 func InitClient() {
 	cfg = config.NewConfig()
 	err := cfg.LoadConfiguration(configurationFile)

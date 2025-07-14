@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// downloadE2ECmd represents the get command
+// downloadE2ECmd represents the get command.
 var downloadE2ECmd = &cobra.Command{
 	Use:   "dle2e",
 	Short: "download an object from ephemeralfiles using e2e encryption",

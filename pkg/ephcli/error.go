@@ -11,10 +11,11 @@ import (
 )
 
 var (
+	// ErrFileNotFound is returned when a requested file cannot be found.
 	ErrFileNotFound = errors.New("file not found")
 )
 
-// parseError is a helper function to parse the error from the response
+// parseError is a helper function to parse the error from the response.
 func parseError(resp *http.Response) error {
 	var jsonResponse dto.APIError
 	respBody, err := io.ReadAll(resp.Body)

@@ -2,6 +2,7 @@ package ephcli
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
@@ -17,6 +18,13 @@ import (
 	"github.com/ephemeralfiles/eph/pkg/dto"
 )
 
+const (
+	// PEMLineLength is the standard length for PEM-encoded lines.
+	PEMLineLength = 64
+	// AESKeySize32 is the size of AES-256 key in bytes.
+	AESKeySize32 = 32
+)
+
 func formatPEM(pemString string) string {
 	// Format PEM string with newlines
 	formattedPEM := "-----BEGIN PUBLIC KEY-----\n"
@@ -25,8 +33,8 @@ func formatPEM(pemString string) string {
 	pemString = strings.ReplaceAll(pemString, "-----END PUBLIC KEY-----", "")
 	pemString = strings.ReplaceAll(pemString, " ", "")
 
-	for i := 0; i < len(pemString); i += 64 {
-		end := i + 64
+	for i := 0; i < len(pemString); i += PEMLineLength {
+		end := i + PEMLineLength
 		if end > len(pemString) {
 			end = len(pemString)
 		}
@@ -36,23 +44,24 @@ func formatPEM(pemString string) string {
 	return formattedPEM
 }
 
+// EncryptAESKey encrypts an AES key using RSA public key encryption.
 func EncryptAESKey(publicKeyPem, aesKey string) (string, error) {
 	publicKeyPem = formatPEM(publicKeyPem)
 	// Decode PEM block
 	block, _ := pem.Decode([]byte(publicKeyPem))
 	if block == nil {
-		return "", fmt.Errorf("failed to parse PEM block")
+		return "", ErrParsePEMBlock
 	}
 
 	// Parse public key
 	publicKey, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse public key: %v", err)
+		return "", fmt.Errorf("%w: %w", ErrParsePublicKey, err)
 	}
 
 	rsaPublicKey, ok := publicKey.(*rsa.PublicKey)
 	if !ok {
-		return "", fmt.Errorf("not an RSA public key")
+		return "", ErrNotRSAPublicKey
 	}
 
 	// Encrypt the message
@@ -64,19 +73,20 @@ func EncryptAESKey(publicKeyPem, aesKey string) (string, error) {
 		nil,
 	)
 	if err != nil {
-		return "", fmt.Errorf("encryption failed: %v", err)
+		return "", fmt.Errorf("%w: %w", ErrEncryptionFailed, err)
 	}
 	// Convert to base64
 	return base64.StdEncoding.EncodeToString(encryptedData), nil
 }
 
+// LoadRSAPublicKey loads an RSA public key from a PEM-encoded string.
 func LoadRSAPublicKey(pemString string) (*rsa.PublicKey, error) {
 	formattedPEM := formatPEM(pemString)
 	
 	// Decode PEM block
 	block, _ := pem.Decode([]byte(formattedPEM))
 	if block == nil || block.Type != "PUBLIC KEY" {
-		return nil, fmt.Errorf("failed to decode PEM block containing public key")
+		return nil, ErrDecodePEMBlock
 	}
 
 	// Parse the public key
@@ -88,14 +98,14 @@ func LoadRSAPublicKey(pemString string) (*rsa.PublicKey, error) {
 	// Cast the parsed key to *rsa.PublicKey
 	rsaPub, ok := pub.(*rsa.PublicKey)
 	if !ok {
-		return nil, fmt.Errorf("not an RSA public key")
+		return nil, ErrNotRSAPublicKey
 	}
 	return rsaPub, nil
 }
 
-// GenAESKey32bits generates a 32 bits AES key
+// GenAESKey32bits generates a 32 bits AES key.
 func GenAESKey32bits() ([]byte, error) {
-	key := make([]byte, 32)
+	key := make([]byte, AESKeySize32)
 	_, err := rand.Read(key)
 	if err != nil {
 		return nil, fmt.Errorf("error generating AES key: %w", err)
@@ -103,14 +113,14 @@ func GenAESKey32bits() ([]byte, error) {
 	return key, nil
 }
 
-// E2EKeyBundle represents an AES key with its encrypted version
+// E2EKeyBundle represents an AES key with its encrypted version.
 type E2EKeyBundle struct {
 	AESKey          []byte
 	HexString       string
 	EncryptedAESKey string
 }
 
-// GenerateAndEncryptAESKey creates an AES key and encrypts it with the given public key
+// GenerateAndEncryptAESKey creates an AES key and encrypts it with the given public key.
 func GenerateAndEncryptAESKey(publicKey string) (*E2EKeyBundle, error) {
 	aesKey, err := GenAESKey32bits()
 	if err != nil {
@@ -131,7 +141,7 @@ func GenerateAndEncryptAESKey(publicKey string) (*E2EKeyBundle, error) {
 	}, nil
 }
 
-// SendAESKeyToEndpoint sends an encrypted AES key to the specified endpoint
+// SendAESKeyToEndpoint sends an encrypted AES key to the specified endpoint.
 func (c *ClientEphemeralfiles) SendAESKeyToEndpoint(endpoint, encryptedAESKey string) error {
 	payload := dto.RequestAESKey{
 		AESKey: encryptedAESKey,
@@ -142,23 +152,27 @@ func (c *ClientEphemeralfiles) SendAESKeyToEndpoint(endpoint, encryptedAESKey st
 		return fmt.Errorf("error marshalling payload: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(body))
+	ctx, cancel := context.WithTimeout(context.Background(), DefaultAPIRequestTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewBuffer(body))
 	if err != nil {
 		return fmt.Errorf("error creating request: %w", err)
 	}
 
 	// Set headers
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
+	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("error sending request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return fmt.Errorf("%w: %d", ErrUnexpectedStatusCode, resp.StatusCode)
 	}
 
 	return nil

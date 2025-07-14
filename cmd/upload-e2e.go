@@ -5,7 +5,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// uploadCmd represents the get command
+// uploadE2ECmd represents the upload e2e command.
 var uploadE2ECmd = &cobra.Command{
 	Use:   "upe2e",
 	Short: "upload to ephemeralfiles using e2e encryption",

@@ -3,13 +3,11 @@ package ephcli
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 )
 
-// Download downloads a file from the server
-// and saves it to the outputfile
-// If the outputfile is empty, the file will be saved to the current directory
-// with the same name as the file on the server (retrieving the name from the Content-Disposition header)
+// Remove deletes a file from the ephemeralfiles service by its UUID.
 func (c *ClientEphemeralfiles) Remove(uuidFileToRemove string) error {
 	url := fmt.Sprintf("%s/%s", c.FilesEndpoint(), uuidFileToRemove)
 	ctx, cancel := context.WithTimeout(context.Background(), DefaultAPIRequestTimeout)
@@ -26,11 +24,14 @@ func (c *ClientEphemeralfiles) Remove(uuidFileToRemove string) error {
 	if err != nil {
 		return fmt.Errorf("error sending request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			c.log.Debug("Warning: failed to close response body", slog.String("error", closeErr.Error()))
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return parseError(resp)
 	}
-	defer resp.Body.Close()
 	return nil
 }
