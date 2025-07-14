@@ -107,7 +107,7 @@ func autoUpdateBinary(lastVersionFromGithub string) error {
 	// This list is not exhaustive and can change as Go adds support for more architectures.
 	// get actual os
 	os := runtime.GOOS
-	// 	The possible values for runtime.GOOS in Go include:
+	// 	The supported values for runtime.GOOS in this project include:
 	// android
 	// darwin for macOS
 	// dragonfly
@@ -116,7 +116,6 @@ func autoUpdateBinary(lastVersionFromGithub string) error {
 	// netbsd
 	// openbsd
 	// plan9
-	// solaris
 	// windows
 	fmt.Println("os:", os)
 	fmt.Println("arch:", arch)
