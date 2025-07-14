@@ -1,5 +1,6 @@
 [![GitHub release](https://img.shields.io/github/release/ephemeralfiles/eph.svg)](https://github.com/ephemeralfiles/eph/releases/latest)
 [![Go Report Card](https://goreportcard.com/badge/github.com/ephemeralfiles/eph)](https://goreportcard.com/report/github.com/ephemeralfiles/eph)
+![coverage](https://raw.githubusercontent.com/wiki/ephemeralfiles/eph/coverage-badge.svg)
 ![GitHub Downloads](https://img.shields.io/github/downloads/ephemeralfiles/eph/total)
 [![GoDoc](https://godoc.org/github.com/ephemeralfiles/eph?status.svg)](https://godoc.org/github.com/ephemeralfiles/eph)
 [![License](https://img.shields.io/github/license/ephemeralfiles/eph.svg)](LICENSE)
