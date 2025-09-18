@@ -21,7 +21,7 @@ func TestUploadEndpoint(t *testing.T) {
 	client.SetEndpoint("https://test.ephemeralfiles.com")
 	
 	endpoint := client.UploadEndpoint()
-	expected := "https://test.ephemeralfiles.com/api/v1/upload"
+	expected := "https://test.ephemeralfiles.com/api/v1/upload/clear"
 	assert.Equal(t, expected, endpoint)
 }
 
@@ -32,7 +32,7 @@ func TestUploadEndpointDefaultEndpoint(t *testing.T) {
 	// Don't set endpoint, use default
 	
 	endpoint := client.UploadEndpoint()
-	expected := "https://ephemeralfiles.com/api/v1/upload"
+	expected := "https://ephemeralfiles.com/api/v1/upload/clear"
 	assert.Equal(t, expected, endpoint)
 }
 

@@ -20,25 +20,25 @@ const (
 )
 
 // SendAESKeyEndpoint returns the API endpoint URL for sending an AES key for a file.
-func (c *ClientEphemeralfiles) SendAESKeyEndpoint(fileID string) string {
-	return fmt.Sprintf("%s/%s/files/%s/upload-key", c.endpoint, apiVersion, fileID)
+func (c *ClientEphemeralfiles) SendAESKeyEndpoint(uploadID string) string {
+	return fmt.Sprintf("%s/%s/upload/encrypted/%s/key", c.endpoint, apiVersion, uploadID)
 }
 
 // GetPublicKeyEndpoint returns the API endpoint URL for retrieving the server's public key.
 func (c *ClientEphemeralfiles) GetPublicKeyEndpoint() string {
-	return fmt.Sprintf("%s/%s/files", c.endpoint, apiVersion)
+	return fmt.Sprintf("%s/%s/upload/encrypted/init", c.endpoint, apiVersion)
 }
 
 // UploadE2EEndpoint returns the API endpoint URL for E2E encrypted file uploads.
-func (c *ClientEphemeralfiles) UploadE2EEndpoint(transactionID string) string {
-	return fmt.Sprintf("%s/%s/multipart/%s", c.endpoint, apiVersion, transactionID)
+func (c *ClientEphemeralfiles) UploadE2EEndpoint(uploadID string) string {
+	return fmt.Sprintf("%s/%s/upload/encrypted/%s/chunks", c.endpoint, apiVersion, uploadID)
 }
 
 // GetPublicKey retrieves the server's public key and creates a new upload transaction.
 func (c *ClientEphemeralfiles) GetPublicKey() (string, string, string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), DefaultAPIRequestTimeout)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodHead, c.GetPublicKeyEndpoint(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.GetPublicKeyEndpoint(), nil)
 	if err != nil {
 		return "", "", "", fmt.Errorf("error creating request: %w", err)
 	}
@@ -263,6 +263,7 @@ func (c *ClientEphemeralfiles) sendChunkRequest(
 
 	req.Header.Set("Content-Type", contentType)
 	req.Header.Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, fileSize))
+	req.Header.Set("Authorization", "Bearer "+c.token)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

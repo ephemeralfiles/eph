@@ -20,7 +20,7 @@ func TestDownloadEndpoint(t *testing.T) {
 	client := ephcli.NewClient("token")
 	client.SetEndpoint("https://ephemeralfiles.com")
 	url := client.DownloadEndpoint("file1")
-	assert.Equal(t, "https://ephemeralfiles.com/api/v1/download/file1", url)
+	assert.Equal(t, "https://ephemeralfiles.com/api/v1/download/clear/file1", url)
 }
 
 func TestDownload(t *testing.T) {

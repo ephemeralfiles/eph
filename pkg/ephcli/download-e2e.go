@@ -26,7 +26,7 @@ func (c *ClientEphemeralfiles) GetFileInformationEndpoint(fileID string) string 
 
 // GetNewDownloadTransactionEndpoint returns the API endpoint URL for creating a new download transaction.
 func (c *ClientEphemeralfiles) GetNewDownloadTransactionEndpoint(fileID string) string {
-	return fmt.Sprintf("%s/%s/public-key/download/%s", c.endpoint, apiVersion, fileID)
+	return fmt.Sprintf("%s/%s/download/encrypted/%s/init", c.endpoint, apiVersion, fileID)
 }
 
 // CreateNewDownloadTransaction creates a new E2E download transaction and returns the transaction ID and public key.
@@ -35,7 +35,7 @@ func (c *ClientEphemeralfiles) CreateNewDownloadTransaction(
 ) (string, string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), DefaultAPIRequestTimeout)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodHead, c.GetNewDownloadTransactionEndpoint(fileID), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.GetNewDownloadTransactionEndpoint(fileID), nil)
 	if err != nil {
 		return "", "", fmt.Errorf("error creating request: %w", err)
 	}
@@ -88,7 +88,7 @@ func (c *ClientEphemeralfiles) DownloadE2E(fileID string) error {
 
 // DownloadPartE2EEndpoint returns the API endpoint URL for downloading a specific part of an E2E encrypted file.
 func (c *ClientEphemeralfiles) DownloadPartE2EEndpoint(transactionID string, part int) string {
-	return fmt.Sprintf("%s/%s/multipart/%s/%d", c.endpoint, apiVersion, transactionID, part)
+	return fmt.Sprintf("%s/%s/download/encrypted/%s/chunks/%d", c.endpoint, apiVersion, transactionID, part)
 }
 
 // DownloadPartE2E downloads and decrypts a specific part of an E2E encrypted file.
@@ -159,7 +159,7 @@ func (c *ClientEphemeralfiles) DownloadPartE2E(
 // UpdateAESKeyForDownloadTransactionEndpoint returns the API endpoint URL for updating
 // the AES key in a download transaction.
 func (c *ClientEphemeralfiles) UpdateAESKeyForDownloadTransactionEndpoint(transactionID string) string {
-	return fmt.Sprintf("%s/%s/download-transaction/%s/aeskey", c.endpoint, apiVersion, transactionID)
+	return fmt.Sprintf("%s/%s/download/encrypted/%s/key", c.endpoint, apiVersion, transactionID)
 }
 
 
