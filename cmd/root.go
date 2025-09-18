@@ -29,6 +29,9 @@ var (
 
 	renderingType string
 
+	// Transfer method flag.
+	clearTransfer bool
+
 	cfg *config.Config
 	c   *ephcli.ClientEphemeralfiles
 )
@@ -66,12 +69,11 @@ func init() {
 	// upload subcommand parameters
 	uploadCmd.PersistentFlags().StringVarP(&fileToUpload, "input", "i", "", "file to upload")
 	uploadCmd.PersistentFlags().BoolVarP(&noProgressBar, "no-progress-bar", "n", false, "disable progress bar")
+	uploadCmd.PersistentFlags().BoolVar(&clearTransfer, "clear", false, "upload without encryption")
 	// download subcommand parameters
 	downloadCmd.PersistentFlags().StringVarP(&uuidFile, "input", "i", "", "uuid of file to download")
 	downloadCmd.PersistentFlags().BoolVarP(&noProgressBar, "no-progress-bar", "n", false, "disable progress bar")
-	// downloadE2ECmd subcommand parameters
-	downloadE2ECmd.PersistentFlags().StringVarP(&uuidFile, "input", "i", "", "uuid of file to download")
-	downloadE2ECmd.PersistentFlags().BoolVarP(&noProgressBar, "no-progress-bar", "n", false, "disable progress bar")
+	downloadCmd.PersistentFlags().BoolVar(&clearTransfer, "clear", false, "download without encryption")
 	// list subcommand parameters
 	listCmd.PersistentFlags().StringVarP(&renderingType, "rendering", "r", "table", "rendering type (table, json, csv)")
 	// remove subcommand parameters
@@ -80,15 +82,12 @@ func init() {
 	configCmd.PersistentFlags().StringVarP(&token, "token", "t", "", "ephemeralfiles token")
 	configCmd.PersistentFlags().StringVarP(&endpoint, "endpoint", "e", "", "ephemeralfiles endpoint")
 
-	uploadE2ECmd.PersistentFlags().StringVarP(&fileToUpload, "input", "i", "", "file to upload")
 
 	// add subcommands
 	rootCmd.AddCommand(downloadCmd)
-	rootCmd.AddCommand(downloadE2ECmd)
 	rootCmd.AddCommand(removeCmd)
 	rootCmd.AddCommand(purgeCmd)
 	rootCmd.AddCommand(uploadCmd)
-	rootCmd.AddCommand(uploadE2ECmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(checkCmd)
 	rootCmd.AddCommand(configCmd)

@@ -59,7 +59,7 @@ testcases:
       export EPHEMERALFILES_ENDPOINT={{.ENDPOINT}}
       cd ..
       BIG_FILE_ID=$(cat /tmp/big_file_id.txt | tr -d '\n')
-      go run . dle2e -i "$BIG_FILE_ID"
+      go run . dl -i "$BIG_FILE_ID"
     info: "Download E2E result: {{.result.systemout}}"
     assertions:
     - result.code ShouldEqual 0

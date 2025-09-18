@@ -5,17 +5,26 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// getCmd represents the get command.
+// downloadCmd represents the download command.
 var downloadCmd = &cobra.Command{
 	Use:   "dl",
 	Short: "download from ephemeralfiles",
 	Long: `download from ephemeralfiles. The uuid is required.
+
+By default, files are downloaded with end-to-end encryption.
+Use --clear to download without encryption.
 `,
 	Run: func(cmd *cobra.Command, _ []string) {
 		InitClient()
 		cmdutil.ValidateRequired(uuidFile, "uuid", cmd)
 
-		err := c.Download(uuidFile, "")
+		// Use encrypted download by default, unless --clear flag is set
+		var err error
+		if clearTransfer {
+			err = c.Download(uuidFile, "")
+		} else {
+			err = c.DownloadE2E(uuidFile)
+		}
 		if err != nil {
 			cmdutil.HandleError("Error downloading file", err)
 		}

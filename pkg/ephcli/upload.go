@@ -12,7 +12,7 @@ import (
 
 // UploadEndpoint returns the API endpoint URL for file uploads.
 func (c *ClientEphemeralfiles) UploadEndpoint() string {
-	return fmt.Sprintf("%s/%s/upload", c.endpoint, apiVersion)
+	return fmt.Sprintf("%s/%s/upload/clear", c.endpoint, apiVersion)
 }
 
 // Upload uploads a file to the ephemeralfiles service.

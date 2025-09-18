@@ -17,7 +17,7 @@ const (
 
 // DownloadEndpoint returns the API endpoint URL for downloading a file by UUID.
 func (c *ClientEphemeralfiles) DownloadEndpoint(uuidFile string) string {
-	return fmt.Sprintf("%s/%s/download/%s", c.endpoint, apiVersion, uuidFile)
+	return fmt.Sprintf("%s/%s/download/clear/%s", c.endpoint, apiVersion, uuidFile)
 }
 
 // Download downloads a file from the server

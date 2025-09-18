@@ -12,8 +12,8 @@ import (
 var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "configure the application",
-	Long: `configure the application by setting the token and endpoint. 
-The token is required. The endpoint is required byt have a default value.
+	Long: `configure the application by setting the token and endpoint.
+The token is required. The endpoint is required but has a default value.
 The token is the API token that you can get from the ephemeralfiles website.
 The endpoint is the URL of the ephemeralfiles server.
 `,
@@ -28,6 +28,8 @@ The endpoint is the URL of the ephemeralfiles server.
 		}
 		cfg.Token = token
 		cfg.Endpoint = endpoint
+
+
 		err := cfg.SaveConfiguration(configurationFile)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error saving configuration: %s\n", err)
