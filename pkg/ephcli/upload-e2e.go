@@ -253,7 +253,7 @@ func (c *ClientEphemeralfiles) createChunkForm(encryptedChunk []byte, file *os.F
 func (c *ClientEphemeralfiles) sendChunkRequest(
 	targetURL string, body *bytes.Buffer, contentType string, start, end, fileSize int64,
 ) error {
-	ctx, cancel := context.WithTimeout(context.Background(), DefaultAPIRequestTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), ChunkUploadTimeout)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, body)
