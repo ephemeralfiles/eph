@@ -413,26 +413,26 @@ func TestConfigIntegration(t *testing.T) {
 
 	t.Run("full config workflow", func(t *testing.T) {
 		t.Parallel()
-		
+
 		// Create config
 		cfg := config.NewConfig()
 		cfg.Token = "integration-test-token"
 		cfg.Endpoint = "http://integration-test:8080"
 		cfg.SetHomedir("/tmp")
-		
+
 		// Save configuration
 		tempConfigPath := "/tmp/integration-test-config.yml"
 		defer os.Remove(tempConfigPath)
-		
+
 		err := cfg.SaveConfiguration(tempConfigPath)
 		require.NoError(t, err)
-		
+
 		// Load configuration in new instance
 		newCfg := config.NewConfig()
 		newCfg.SetHomedir("/tmp")
 		err = newCfg.LoadConfiguration(tempConfigPath)
 		require.NoError(t, err)
-		
+
 		// Verify values match
 		assert.Equal(t, cfg.Token, newCfg.Token)
 		assert.Equal(t, cfg.Endpoint, newCfg.Endpoint)
@@ -441,31 +441,151 @@ func TestConfigIntegration(t *testing.T) {
 
 	t.Run("env vars override file config", func(t *testing.T) {
 		// Can't use t.Parallel() with t.Setenv()
-		
+
 		// Create a config file
 		tempDir := "/tmp"
 		tempConfigPath := tempDir + "/env-override-test.yml"
 		defer os.Remove(tempConfigPath)
-		
+
 		fileCfg := config.NewConfig()
 		fileCfg.Token = "file-token"
 		fileCfg.Endpoint = "http://file-endpoint:8080"
 		fileCfg.SetHomedir(tempDir)
 		err := fileCfg.SaveConfiguration(tempConfigPath)
 		require.NoError(t, err)
-		
+
 		// Set environment variables
 		t.Setenv("EPHEMERALFILES_TOKEN", "env-token")
 		t.Setenv("EPHEMERALFILES_ENDPOINT", "http://env-endpoint:8080")
-		
+
 		// Load configuration - env vars should override file
 		cfg := config.NewConfig()
 		cfg.SetHomedir(tempDir)
 		err = cfg.LoadConfiguration(tempConfigPath)
 		require.NoError(t, err)
-		
+
 		// Environment variables should take precedence
 		assert.Equal(t, "env-token", cfg.Token)
 		assert.Equal(t, "http://env-endpoint:8080", cfg.Endpoint)
+	})
+}
+
+func TestResolveConfigPath(t *testing.T) {
+	t.Parallel()
+
+	// Get the expected default path for comparison
+	expectedDefaultPath := config.DefaultConfigFilePath()
+	expectedConfigDir := config.DefautConfigDir()
+
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "empty string returns default",
+			input:    "",
+			expected: expectedDefaultPath,
+		},
+		{
+			name:     "config name resolves to config dir",
+			input:    "production",
+			expected: expectedConfigDir + "/production.yml",
+		},
+		{
+			name:     "short name resolves to config dir",
+			input:    "prod",
+			expected: expectedConfigDir + "/prod.yml",
+		},
+		{
+			name:     "staging environment",
+			input:    "staging",
+			expected: expectedConfigDir + "/staging.yml",
+		},
+		{
+			name:     "dev environment",
+			input:    "dev",
+			expected: expectedConfigDir + "/dev.yml",
+		},
+		{
+			name:     "absolute path is preserved",
+			input:    "/custom/path/to/config.yml",
+			expected: "/custom/path/to/config.yml",
+		},
+		{
+			name:     "home-relative path is preserved",
+			input:    "~/custom/config.yml",
+			expected: "~/custom/config.yml",
+		},
+		{
+			name:     "relative path with slash is preserved",
+			input:    "./configs/myconfig.yml",
+			expected: "./configs/myconfig.yml",
+		},
+		{
+			name:     "relative path without extension but with slash",
+			input:    "configs/production",
+			expected: "configs/production",
+		},
+		{
+			name:     "yml extension treated as path",
+			input:    "myconfig.yml",
+			expected: "myconfig.yml",
+		},
+		{
+			name:     "yaml extension treated as path",
+			input:    "myconfig.yaml",
+			expected: expectedConfigDir + "/myconfig.yaml.yml", // This will add .yml
+		},
+		{
+			name:     "path with multiple slashes",
+			input:    "/etc/eph/production.yml",
+			expected: "/etc/eph/production.yml",
+		},
+		{
+			name:     "windows-style absolute path (forward slash)",
+			input:    "C:/configs/eph.yml",
+			expected: "C:/configs/eph.yml", // Contains path separator, treated as path
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			result := config.ResolveConfigPath(tt.input)
+			assert.Equal(t, tt.expected, result, "ResolveConfigPath(%q) should return %q, got %q", tt.input, tt.expected, result)
+		})
+	}
+}
+
+func TestResolveConfigPathEdgeCases(t *testing.T) {
+	t.Parallel()
+
+	t.Run("name with special characters", func(t *testing.T) {
+		t.Parallel()
+
+		input := "my-prod-config"
+		result := config.ResolveConfigPath(input)
+		expected := config.DefautConfigDir() + "/my-prod-config.yml"
+		assert.Equal(t, expected, result)
+	})
+
+	t.Run("name with underscores", func(t *testing.T) {
+		t.Parallel()
+
+		input := "my_staging_config"
+		result := config.ResolveConfigPath(input)
+		expected := config.DefautConfigDir() + "/my_staging_config.yml"
+		assert.Equal(t, expected, result)
+	})
+
+	t.Run("name with dots but not yml extension", func(t *testing.T) {
+		t.Parallel()
+
+		input := "config.v2.production"
+		result := config.ResolveConfigPath(input)
+		expected := config.DefautConfigDir() + "/config.v2.production.yml"
+		assert.Equal(t, expected, result)
 	})
 }

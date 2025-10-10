@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/ephemeralfiles/eph/pkg/config"
 	"github.com/spf13/cobra"
 )
 
@@ -19,7 +20,8 @@ var orgUseCmd = &cobra.Command{
 
 		if clearDefault {
 			cfg.DefaultOrganization = ""
-			if err := cfg.SaveConfiguration(configurationFile); err != nil {
+			resolvedConfigPath := config.ResolveConfigPath(configurationFile)
+			if err := cfg.SaveConfiguration(resolvedConfigPath); err != nil {
 				fmt.Fprintf(os.Stderr, "Error saving configuration: %s\n", err)
 				os.Exit(1)
 			}
@@ -43,7 +45,8 @@ var orgUseCmd = &cobra.Command{
 		}
 
 		cfg.DefaultOrganization = org.Name
-		if err := cfg.SaveConfiguration(configurationFile); err != nil {
+		resolvedConfigPath := config.ResolveConfigPath(configurationFile)
+		if err := cfg.SaveConfiguration(resolvedConfigPath); err != nil {
 			fmt.Fprintf(os.Stderr, "Error saving configuration: %s\n", err)
 			os.Exit(1)
 		}

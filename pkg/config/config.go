@@ -155,3 +155,21 @@ func DefautConfigDir() string {
 func DefaultConfigFilePath() string {
 	return filepath.Join(DefautConfigDir(), "default.yml")
 }
+
+// ResolveConfigPath resolves a configuration name or path to a full file path.
+// If the input contains a path separator or .yml extension, it's treated as a full path.
+// Otherwise, it's treated as a config name and resolved to $HOME/.config/eph/<name>.yml.
+func ResolveConfigPath(nameOrPath string) string {
+	// Empty string returns default config path
+	if nameOrPath == "" {
+		return DefaultConfigFilePath()
+	}
+
+	// If it contains a path separator or .yml extension, treat as full path
+	if filepath.IsAbs(nameOrPath) || filepath.Base(nameOrPath) != nameOrPath || filepath.Ext(nameOrPath) == ".yml" {
+		return nameOrPath
+	}
+
+	// Otherwise, treat as a config name and resolve to config directory
+	return filepath.Join(DefautConfigDir(), nameOrPath+".yml")
+}
