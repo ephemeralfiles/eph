@@ -13,11 +13,33 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+
+	"github.com/schollz/progressbar/v3"
 )
 
 const (
 	chunkSize = 128 * 1024 * 1024 // 128MB chunks
 )
+
+// progressReader wraps an io.Reader and updates a progress bar as bytes are read.
+type progressReader struct {
+	reader io.Reader
+	bar    *progressbar.ProgressBar
+}
+
+// Read implements io.Reader interface and updates progress bar.
+func (pr *progressReader) Read(p []byte) (int, error) {
+	n, err := pr.reader.Read(p)
+	if n > 0 && pr.bar != nil {
+		_ = pr.bar.Add(n)
+	}
+	// Don't wrap io.EOF or other expected errors from io.Reader.
+	// These must be returned as-is to satisfy io.Reader contract.
+	if err != nil && !errors.Is(err, io.EOF) {
+		return n, fmt.Errorf("progress reader: %w", err)
+	}
+	return n, err //nolint:wrapcheck // io.EOF must be returned unwrapped per io.Reader contract
+}
 
 // SendAESKeyEndpoint returns the API endpoint URL for sending an AES key for a file.
 func (c *ClientEphemeralfiles) SendAESKeyEndpoint(uploadID string) string {
@@ -117,7 +139,7 @@ func (c *ClientEphemeralfiles) UploadFileInChunks(aeskey []byte, filePath, targe
 		if err := c.uploadSingleChunk(file, aeskey, targetURL, start, end, fileSize); err != nil {
 			return err
 		}
-		_ = c.bar.Add(chunkSize)
+		// Progress is now tracked automatically by progressReader in sendChunkRequest
 	}
 	return nil
 }
@@ -320,7 +342,13 @@ func (c *ClientEphemeralfiles) sendChunkRequest(
 	ctx, cancel := context.WithTimeout(context.Background(), ChunkUploadTimeout)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, body)
+	// Wrap body with progress reader for byte-level progress tracking
+	progressBody := &progressReader{
+		reader: body,
+		bar:    c.bar,
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, progressBody)
 	if err != nil {
 		return fmt.Errorf("error creating request: %w", err)
 	}
