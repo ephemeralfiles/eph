@@ -1,6 +1,18 @@
 name: Exec testsuite
 testcases:
 
+- name: Prune
+  steps:
+  - type: exec
+    script: |
+      export EPHEMERALFILES_TOKEN={{.JWTTOKEN1}}
+      export EPHEMERALFILES_ENDPOINT={{.ENDPOINT}}
+      cd ..
+      go run . prune
+    info: "result.systemout is {{.result.systemout}}"
+    assertions:
+    - result.code ShouldEqual 0
+
 - name: Test upload
   steps:
   - type: exec
@@ -21,6 +33,20 @@ testcases:
     info: "result.systemout is {{.result.systemout}}"
     assertions:
     - result.code ShouldEqual 0
+
+- name: Calculate checksum for 2GB file before upload
+  steps:
+  - type: exec
+    script: |
+      if [ ! -f /tmp/data_checksum.txt ]; then
+        echo "Calculating checksum for 2GB file (this may take a moment)..."
+        shasum -a 256 /tmp/data | awk '{print $1}' > /tmp/data_checksum.txt
+      fi
+      cat /tmp/data_checksum.txt
+    info: "2GB file checksum: {{.result.systemout}}"
+    assertions:
+    - result.code ShouldEqual 0
+    - result.systemout ShouldNotBeEmpty
 
 - name: Test upload 2GB
   steps:
@@ -59,10 +85,31 @@ testcases:
       export EPHEMERALFILES_ENDPOINT={{.ENDPOINT}}
       cd ..
       BIG_FILE_ID=$(cat /tmp/big_file_id.txt | tr -d '\n')
-      go run . dl -i "$BIG_FILE_ID"
+      go run . dl -i "$BIG_FILE_ID" -o /tmp/data_downloaded
     info: "Download E2E result: {{.result.systemout}}"
     assertions:
     - result.code ShouldEqual 0
+
+- name: Verify checksum of downloaded 2GB file
+  steps:
+  - type: exec
+    script: |
+      echo "Calculating checksum for downloaded 2GB file (this may take a moment)..."
+      shasum -a 256 /tmp/data_downloaded | awk '{print $1}' > /tmp/data_downloaded_checksum.txt
+      ORIG_CHECKSUM=$(cat /tmp/data_checksum.txt | tr -d '\n')
+      DOWN_CHECKSUM=$(cat /tmp/data_downloaded_checksum.txt | tr -d '\n')
+      echo "Original checksum:  $ORIG_CHECKSUM"
+      echo "Downloaded checksum: $DOWN_CHECKSUM"
+      if [ "$ORIG_CHECKSUM" = "$DOWN_CHECKSUM" ]; then
+        echo "CHECKSUM_MATCH=true"
+      else
+        echo "CHECKSUM_MATCH=false"
+        exit 1
+      fi
+    info: "2GB file checksum verification: {{.result.systemout}}"
+    assertions:
+    - result.code ShouldEqual 0
+    - result.systemout ShouldContainSubstring "CHECKSUM_MATCH=true"
 
 - name: Create small test file
   steps:
@@ -73,6 +120,17 @@ testcases:
     info: "Small file created: {{.result.systemout}}"
     assertions:
     - result.code ShouldEqual 0
+
+- name: Calculate checksum for small file before upload
+  steps:
+  - type: exec
+    script: |
+      shasum -a 256 /tmp/small_test_file.txt | awk '{print $1}' > /tmp/small_file_checksum_orig.txt
+      cat /tmp/small_file_checksum_orig.txt
+    info: "Small file checksum: {{.result.systemout}}"
+    assertions:
+    - result.code ShouldEqual 0
+    - result.systemout ShouldNotBeEmpty
 
 - name: Test upload small file
   steps:
@@ -102,7 +160,7 @@ testcases:
     - result.code ShouldEqual 0
     - result.systemout ShouldContainSubstring "FILES_COUNT=3"
 
-- name: Get small file ID for removal
+- name: Get small file ID for download and removal
   steps:
   - type: exec
     script: |
@@ -115,6 +173,34 @@ testcases:
     assertions:
     - result.code ShouldEqual 0
     - result.systemout ShouldNotBeEmpty
+
+- name: Test download small file and verify checksum
+  steps:
+  - type: exec
+    script: |
+      export EPHEMERALFILES_TOKEN={{.JWTTOKEN1}}
+      export EPHEMERALFILES_ENDPOINT={{.ENDPOINT}}
+      cd ..
+      SMALL_FILE_ID=$(cat /tmp/small_file_id.txt | tr -d '\n')
+      # Download to a different location
+      go run . dl -i "$SMALL_FILE_ID" -o /tmp/small_test_file_downloaded.txt
+      # Calculate checksum of downloaded file
+      shasum -a 256 /tmp/small_test_file_downloaded.txt | awk '{print $1}' > /tmp/small_file_checksum_downloaded.txt
+      # Compare checksums
+      ORIG_CHECKSUM=$(cat /tmp/small_file_checksum_orig.txt | tr -d '\n')
+      DOWN_CHECKSUM=$(cat /tmp/small_file_checksum_downloaded.txt | tr -d '\n')
+      echo "Original checksum:  $ORIG_CHECKSUM"
+      echo "Downloaded checksum: $DOWN_CHECKSUM"
+      if [ "$ORIG_CHECKSUM" = "$DOWN_CHECKSUM" ]; then
+        echo "CHECKSUM_MATCH=true"
+      else
+        echo "CHECKSUM_MATCH=false"
+        exit 1
+      fi
+    info: "Download and checksum verification: {{.result.systemout}}"
+    assertions:
+    - result.code ShouldEqual 0
+    - result.systemout ShouldContainSubstring "CHECKSUM_MATCH=true"
 
 - name: Test remove small file
   steps:
@@ -181,6 +267,9 @@ testcases:
   - type: exec
     script: |
       rm -f /tmp/big_file_id.txt /tmp/small_file_id.txt /tmp/small_test_file.txt /tmp/data
+      rm -f /tmp/small_test_file_downloaded.txt /tmp/data_downloaded
+      rm -f /tmp/small_file_checksum_orig.txt /tmp/small_file_checksum_downloaded.txt
+      rm -f /tmp/data_checksum.txt /tmp/data_downloaded_checksum.txt
       echo "Cleanup completed"
     info: "Cleanup: {{.result.systemout}}"
     assertions:
