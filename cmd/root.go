@@ -63,7 +63,7 @@ func init() {
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	// -c option to specify the configuration file
 	rootCmd.PersistentFlags().StringVarP(&configurationFile, "config", "c",
-		config.DefaultConfigFilePath(), "configuration file")
+		config.DefaultConfigFilePath(), "configuration name or file path (e.g., 'production' or '/path/to/config.yml')")
 	// -d option to enable debug mode
 	rootCmd.PersistentFlags().BoolVarP(&debugMode, "debug", "d", false, "enable debug mode (disable progress bar)")
 
@@ -101,7 +101,8 @@ func init() {
 // InitClient initializes the client.
 func InitClient() {
 	cfg = config.NewConfig()
-	err := cfg.LoadConfiguration(configurationFile)
+	resolvedConfigPath := config.ResolveConfigPath(configurationFile)
+	err := cfg.LoadConfiguration(resolvedConfigPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading configuration: %s\n", err)
 		os.Exit(1)
