@@ -158,7 +158,9 @@ func (c *ClientEphemeralfiles) UploadE2E(fileToUpload string) error {
 }
 
 // UploadOrganizationFileE2E uploads a file to an organization using end-to-end encryption.
-func (c *ClientEphemeralfiles) UploadOrganizationFileE2E(orgID string, fileToUpload string, tags []string) (string, error) {
+func (c *ClientEphemeralfiles) UploadOrganizationFileE2E(
+	orgID string, fileToUpload string, tags []string,
+) (string, error) {
 	transactionID, fileID, pubkey, err := c.GetPublicKeyWithHeaders(orgID, tags)
 	if err != nil {
 		return "", fmt.Errorf("error getting public key: %w", err)

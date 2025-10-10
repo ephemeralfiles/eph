@@ -12,6 +12,10 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+const (
+	defaultTagsLimit = 50
+)
+
 var (
 	orgTagsFormat string
 	orgTagsLimit  int
@@ -44,14 +48,14 @@ var orgTagsCmd = &cobra.Command{
 		}
 
 		switch orgTagsFormat {
-		case "json":
+		case renderFormatJSON:
 			output, err := json.MarshalIndent(tags, "", "  ")
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error encoding JSON: %s\n", err)
 				os.Exit(1)
 			}
 			fmt.Println(string(output))
-		case "yaml":
+		case renderFormatYAML:
 			output, err := yaml.Marshal(tags)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error encoding YAML: %s\n", err)
@@ -75,6 +79,6 @@ var orgTagsCmd = &cobra.Command{
 }
 
 func init() {
-	orgTagsCmd.Flags().StringVarP(&orgTagsFormat, "format", "r", "table", "output format: table, json, yaml")
-	orgTagsCmd.Flags().IntVar(&orgTagsLimit, "limit", 50, "maximum number of tags (max 100)")
+	orgTagsCmd.Flags().StringVarP(&orgTagsFormat, "format", "r", renderFormatTable, "output format: table, json, yaml")
+	orgTagsCmd.Flags().IntVar(&orgTagsLimit, "limit", defaultTagsLimit, "maximum number of tags (max 100)")
 }

@@ -10,6 +10,10 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+const (
+	warningThreshold = 90.0
+)
+
 var orgStorageFormat string
 
 // orgStorageCmd represents the organization storage command.
@@ -34,14 +38,14 @@ var orgStorageCmd = &cobra.Command{
 		}
 
 		switch orgStorageFormat {
-		case "json":
+		case renderFormatJSON:
 			output, err := json.MarshalIndent(storage, "", "  ")
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error encoding JSON: %s\n", err)
 				os.Exit(1)
 			}
 			fmt.Println(string(output))
-		case "yaml":
+		case renderFormatYAML:
 			output, err := yaml.Marshal(storage)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error encoding YAML: %s\n", err)
@@ -59,7 +63,7 @@ var orgStorageCmd = &cobra.Command{
 			status := "Normal"
 			if storage.IsFull {
 				status = "Full"
-			} else if storage.UsagePercent > 90 {
+			} else if storage.UsagePercent > warningThreshold {
 				status = "Warning"
 			}
 			fmt.Printf("Status:           %s\n", status)

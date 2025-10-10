@@ -102,6 +102,7 @@ func (c *ClientEphemeralfiles) DownloadPartE2EEndpoint(transactionID string, par
 func (c *ClientEphemeralfiles) DownloadPartE2E(
 	outputFilePath string, transactionID string, aesKey []byte, part int,
 ) (int, error) {
+	// #nosec G304 -- outputFilePath is controlled by user for file download
 	file, err := os.OpenFile(outputFilePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, FilePermission)
 	if err != nil {
 		return 0, fmt.Errorf("error opening file: %w", err)
@@ -273,7 +274,9 @@ func (c *ClientEphemeralfiles) setupDownloadTransaction(fileID string) (string, 
 }
 
 // downloadAllParts downloads all file parts with progress tracking.
-func (c *ClientEphemeralfiles) downloadAllParts(fileInfo *dto.InfoFile, transactionID string, aesKey []byte, outputFilePath string) error {
+func (c *ClientEphemeralfiles) downloadAllParts(
+	fileInfo *dto.InfoFile, transactionID string, aesKey []byte, outputFilePath string,
+) error {
 	c.InitProgressBar("downloading file...", fileInfo.Size)
 	defer c.CloseProgressBar()
 

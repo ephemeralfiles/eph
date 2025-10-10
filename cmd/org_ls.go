@@ -13,6 +13,16 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+const (
+	bytesToKB           = 1024.0
+	maxTagsDisplayLen   = 30
+	maxOwnerDisplayLen  = 25
+	defaultFilesLimit   = 100
+	tagsTruncateLen     = 27
+	ownerTruncateLen    = 22
+	expirationDateLen   = 10
+)
+
 var (
 	orgLsFormat  string
 	orgLsTags    string
@@ -65,24 +75,24 @@ var orgListFilesCmd = &cobra.Command{
 		}
 
 		switch orgLsFormat {
-		case "json":
+		case renderFormatJSON:
 			output, err := json.MarshalIndent(files, "", "  ")
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error encoding JSON: %s\n", err)
 				os.Exit(1)
 			}
 			fmt.Println(string(output))
-		case "yaml":
+		case renderFormatYAML:
 			output, err := yaml.Marshal(files)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error encoding YAML: %s\n", err)
 				os.Exit(1)
 			}
 			fmt.Print(string(output))
-		case "csv":
+		case renderFormatCSV:
 			fmt.Println("ID,FILENAME,SIZE,TAGS,OWNER,EXPIRATION")
 			for _, file := range files {
-				sizeKB := float64(file.Size) / 1024.0
+				sizeKB := float64(file.Size) / bytesToKB
 				tags := strings.Join(file.Tags, ";")
 				fmt.Printf("%s,%s,%.2fKB,%s,%s,%s\n",
 					file.ID, file.Filename, sizeKB, tags, file.OwnerEmail, file.ExpirationDate)
@@ -93,14 +103,14 @@ var orgListFilesCmd = &cobra.Command{
 				{"ID", "FILENAME", "SIZE", "TAGS", "OWNER", "EXPIRATION"},
 			}
 			for _, file := range files {
-				sizeKB := float64(file.Size) / 1024.0
+				sizeKB := float64(file.Size) / bytesToKB
 				tags := strings.Join(file.Tags, ", ")
-				if len(tags) > 30 {
-					tags = tags[:27] + "..."
+				if len(tags) > maxTagsDisplayLen {
+					tags = tags[:tagsTruncateLen] + "..."
 				}
 				owner := file.OwnerEmail
-				if len(owner) > 25 {
-					owner = owner[:22] + "..."
+				if len(owner) > maxOwnerDisplayLen {
+					owner = owner[:ownerTruncateLen] + "..."
 				}
 				tableData = append(tableData, []string{
 					file.ID,
@@ -108,7 +118,7 @@ var orgListFilesCmd = &cobra.Command{
 					fmt.Sprintf("%.2fKB", sizeKB),
 					tags,
 					owner,
-					file.ExpirationDate[:10],
+					file.ExpirationDate[:expirationDateLen],
 				})
 			}
 			_ = pterm.DefaultTable.WithHasHeader().WithData(tableData).Render()
@@ -117,9 +127,10 @@ var orgListFilesCmd = &cobra.Command{
 }
 
 func init() {
-	orgListFilesCmd.Flags().StringVarP(&orgLsFormat, "format", "r", "table", "output format: table, json, csv, yaml")
+	orgListFilesCmd.Flags().StringVarP(&orgLsFormat, "format", "r",
+		renderFormatTable, "output format: table, json, csv, yaml")
 	orgListFilesCmd.Flags().StringVar(&orgLsTags, "tags", "", "filter by comma-separated tags")
-	orgListFilesCmd.Flags().IntVar(&orgLsLimit, "limit", 100, "maximum number of files")
+	orgListFilesCmd.Flags().IntVar(&orgLsLimit, "limit", defaultFilesLimit, "maximum number of files")
 	orgListFilesCmd.Flags().IntVar(&orgLsOffset, "offset", 0, "pagination offset")
 	orgListFilesCmd.Flags().BoolVar(&orgLsRecent, "recent", false, "show only recent files")
 	orgListFilesCmd.Flags().BoolVar(&orgLsExpired, "expired", false, "show only expired files")

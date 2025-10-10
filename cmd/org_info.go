@@ -63,7 +63,7 @@ var orgInfoCmd = &cobra.Command{
 		}
 
 		switch orgInfoFormat {
-		case "json":
+		case renderFormatJSON:
 			combined := map[string]interface{}{
 				"organization": org,
 				"storage":      storage,
@@ -75,7 +75,7 @@ var orgInfoCmd = &cobra.Command{
 				os.Exit(1)
 			}
 			fmt.Println(string(output))
-		case "yaml":
+		case renderFormatYAML:
 			combined := map[string]interface{}{
 				"organization": org,
 				"storage":      storage,
@@ -107,5 +107,5 @@ var orgInfoCmd = &cobra.Command{
 }
 
 func init() {
-	orgInfoCmd.Flags().StringVarP(&orgInfoFormat, "format", "r", "table", "output format: table, json, yaml")
+	orgInfoCmd.Flags().StringVarP(&orgInfoFormat, "format", "r", renderFormatTable, "output format: table, json, yaml")
 }
