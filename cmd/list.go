@@ -8,6 +8,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	renderFormatTable = "table"
+	renderFormatJSON  = "json"
+	renderFormatCSV   = "csv"
+	renderFormatYAML  = "yaml"
+)
+
 // listCmd represents the get command.
 var listCmd = &cobra.Command{
 	Use:   "ls",
@@ -17,7 +24,10 @@ var listCmd = &cobra.Command{
 	Run: func(_ *cobra.Command, _ []string) {
 		InitClient()
 		// check rendering type
-		if renderingType != "table" && renderingType != "json" && renderingType != "csv" && renderingType != "yaml" {
+		if renderingType != renderFormatTable &&
+			renderingType != renderFormatJSON &&
+			renderingType != renderFormatCSV &&
+			renderingType != renderFormatYAML {
 			fmt.Fprintf(os.Stderr, "Invalid rendering type\n")
 			os.Exit(1)
 		}
@@ -32,11 +42,11 @@ var listCmd = &cobra.Command{
 		}
 
 		switch renderingType {
-		case "json":
+		case renderFormatJSON:
 			err = ephcli.PrintJSON(&files)
-		case "csv":
+		case renderFormatCSV:
 			err = ephcli.PrintCSV(&files)
-		case "yaml":
+		case renderFormatYAML:
 			err = ephcli.PrintYAML(&files)
 		default:
 			err = ephcli.Print(&files)

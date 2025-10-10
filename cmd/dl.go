@@ -21,9 +21,9 @@ Use --clear to download without encryption.
 		// Use encrypted download by default, unless --clear flag is set
 		var err error
 		if clearTransfer {
-			err = c.Download(uuidFile, "")
+			err = c.Download(uuidFile, outputFile)
 		} else {
-			err = c.DownloadE2E(uuidFile)
+			err = c.DownloadE2E(uuidFile, outputFile)
 		}
 		if err != nil {
 			cmdutil.HandleError("Error downloading file", err)

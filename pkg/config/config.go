@@ -30,17 +30,19 @@ var (
 
 // Config is the configuration for the application.
 type Config struct {
-	Token    string `yaml:"token"`
-	Endpoint string `yaml:"endpoint"`
-	homedir  string
+	Token               string `yaml:"token"`
+	Endpoint            string `yaml:"endpoint"`
+	DefaultOrganization string `yaml:"default_organization,omitempty"`
+	homedir             string
 }
 
 // NewConfig creates a new configuration for the application.
 func NewConfig() *Config {
 	cfg := &Config{
-		Token:    "",
-		Endpoint: "",
-		homedir:  "",
+		Token:               "",
+		Endpoint:            "",
+		DefaultOrganization: "",
+		homedir:             "",
 	}
 	cfg.initHomedir()
 

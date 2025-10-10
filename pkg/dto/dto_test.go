@@ -138,68 +138,77 @@ func TestRequestAESKey(t *testing.T) {
 func TestAPIError(t *testing.T) {
 	t.Parallel()
 
-	t.Run("JSON marshaling", func(t *testing.T) {
+	t.Run("legacy format - boolean error with msg", func(t *testing.T) {
 		t.Parallel()
 
-		apiErr := dto.APIError{
-			Err:     true,
-			Message: "File not found",
-		}
-
-		data, err := json.Marshal(apiErr)
-		require.NoError(t, err)
-
-		expected := `{"error":true,"msg":"File not found"}`
-		assert.JSONEq(t, expected, string(data))
-	})
-
-	t.Run("JSON unmarshaling", func(t *testing.T) {
-		t.Parallel()
-
-		jsonData := `{"error":false,"msg":"Success"}`
+		jsonData := `{"error":true,"msg":"File not found"}`
 
 		var apiErr dto.APIError
 		err := json.Unmarshal([]byte(jsonData), &apiErr)
 		require.NoError(t, err)
 
-		assert.False(t, apiErr.Err)
-		assert.Equal(t, "Success", apiErr.Message)
+		assert.Equal(t, "File not found", apiErr.GetMessage())
 	})
 
-	t.Run("error states", func(t *testing.T) {
+	t.Run("new format - string error with message", func(t *testing.T) {
 		t.Parallel()
 
-		tests := []struct {
-			name    string
-			err     bool
-			message string
-		}{
-			{"success state", false, "Operation completed"},
-			{"error state", true, "Something went wrong"},
-			{"empty message", true, ""},
-			{"false with message", false, "No error but has message"},
-		}
+		jsonData := `{"error":"file not found in request","message":"file not found in request"}`
 
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				t.Parallel()
+		var apiErr dto.APIError
+		err := json.Unmarshal([]byte(jsonData), &apiErr)
+		require.NoError(t, err)
 
-				apiErr := dto.APIError{
-					Err:     tt.err,
-					Message: tt.message,
-				}
+		assert.Equal(t, "file not found in request", apiErr.GetMessage())
+	})
 
-				data, err := json.Marshal(apiErr)
-				require.NoError(t, err)
+	t.Run("message field priority", func(t *testing.T) {
+		t.Parallel()
 
-				var unmarshaled dto.APIError
-				err = json.Unmarshal(data, &unmarshaled)
-				require.NoError(t, err)
+		jsonData := `{"error":"error text","message":"message text","msg":"msg text"}`
 
-				assert.Equal(t, tt.err, unmarshaled.Err)
-				assert.Equal(t, tt.message, unmarshaled.Message)
-			})
-		}
+		var apiErr dto.APIError
+		err := json.Unmarshal([]byte(jsonData), &apiErr)
+		require.NoError(t, err)
+
+		// Message should have priority
+		assert.Equal(t, "message text", apiErr.GetMessage())
+	})
+
+	t.Run("legacy msg priority when no message", func(t *testing.T) {
+		t.Parallel()
+
+		jsonData := `{"error":true,"msg":"legacy message"}`
+
+		var apiErr dto.APIError
+		err := json.Unmarshal([]byte(jsonData), &apiErr)
+		require.NoError(t, err)
+
+		assert.Equal(t, "legacy message", apiErr.GetMessage())
+	})
+
+	t.Run("error field fallback when string", func(t *testing.T) {
+		t.Parallel()
+
+		jsonData := `{"error":"error as string"}`
+
+		var apiErr dto.APIError
+		err := json.Unmarshal([]byte(jsonData), &apiErr)
+		require.NoError(t, err)
+
+		assert.Equal(t, "error as string", apiErr.GetMessage())
+	})
+
+	t.Run("unknown error fallback", func(t *testing.T) {
+		t.Parallel()
+
+		jsonData := `{"error":true}`
+
+		var apiErr dto.APIError
+		err := json.Unmarshal([]byte(jsonData), &apiErr)
+		require.NoError(t, err)
+
+		assert.Equal(t, "unknown error", apiErr.GetMessage())
 	})
 }
 

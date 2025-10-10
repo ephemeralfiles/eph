@@ -26,6 +26,7 @@ var (
 
 	fileToUpload string
 	uuidFile     string
+	outputFile   string
 
 	renderingType string
 
@@ -72,6 +73,7 @@ func init() {
 	uploadCmd.PersistentFlags().BoolVar(&clearTransfer, "clear", false, "upload without encryption")
 	// download subcommand parameters
 	downloadCmd.PersistentFlags().StringVarP(&uuidFile, "input", "i", "", "uuid of file to download")
+	downloadCmd.PersistentFlags().StringVarP(&outputFile, "output", "o", "", "output file path (optional)")
 	downloadCmd.PersistentFlags().BoolVarP(&noProgressBar, "no-progress-bar", "n", false, "disable progress bar")
 	downloadCmd.PersistentFlags().BoolVar(&clearTransfer, "clear", false, "download without encryption")
 	// list subcommand parameters
