@@ -118,7 +118,7 @@ func (c *ClientEphemeralfiles) DownloadPartE2E(
 func (c *ClientEphemeralfiles) DownloadPartE2EToFile(
 	file *os.File, transactionID string, aesKey []byte, part int,
 ) (int, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), DefaultAPIRequestTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), ChunkDownloadTimeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.DownloadPartE2EEndpoint(transactionID, part), nil)
 	if err != nil {
@@ -139,7 +139,13 @@ func (c *ClientEphemeralfiles) DownloadPartE2EToFile(
 		return 0, fmt.Errorf("%w: %d", ErrUnexpectedStatusCode, resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	// Wrap response body with progress reader for byte-level progress tracking
+	progressBody := &progressReader{
+		reader: resp.Body,
+		bar:    c.bar,
+	}
+
+	body, err := io.ReadAll(progressBody)
 	if err != nil {
 		return 0, fmt.Errorf("error reading response: %w", err)
 	}
@@ -172,11 +178,7 @@ func (c *ClientEphemeralfiles) DownloadPartE2EToFile(
 		slog.Int("bytesWritten", n),
 		slog.Int("expectedToWrite", decryptedSize))
 
-	// Update progress bar
-	if c.bar != nil {
-		_, _ = c.bar.Write(decryptedChunk)
-	}
-
+	// Progress is now tracked automatically by progressReader during download
 	return n, nil
 }
 

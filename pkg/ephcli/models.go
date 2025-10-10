@@ -18,6 +18,9 @@ const DefaultAPIRequestTimeout = 5 * time.Second
 // ChunkUploadTimeout is the timeout for chunk upload requests (longer for large files).
 const ChunkUploadTimeout = 30 * time.Minute
 
+// ChunkDownloadTimeout is the timeout for chunk download requests (longer for large files).
+const ChunkDownloadTimeout = 30 * time.Minute
+
 // apiVersion is the version of the API that the client expects.
 const apiVersion string = "api/v1"
 
