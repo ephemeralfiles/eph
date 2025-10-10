@@ -25,7 +25,8 @@ func parseError(resp *http.Response) error {
 
 	err = json.Unmarshal(respBody, &jsonResponse)
 	if err != nil {
-		return fmt.Errorf("error decoding response: %w - raw response: %s", err, respBody)
+		// If JSON parsing fails, return the raw response (might be plain text 404, etc.)
+		return fmt.Errorf("status %d: %s", resp.StatusCode, string(respBody)) //nolint:err113
 	}
-	return fmt.Errorf("status not ok %d: %s", resp.StatusCode, jsonResponse.Message) //nolint:err113
+	return fmt.Errorf("status not ok %d: %s", resp.StatusCode, jsonResponse.GetMessage()) //nolint:err113
 }

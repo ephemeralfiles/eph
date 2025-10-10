@@ -36,6 +36,11 @@ func (c *ClientEphemeralfiles) UploadE2EEndpoint(uploadID string) string {
 
 // GetPublicKey retrieves the server's public key and creates a new upload transaction.
 func (c *ClientEphemeralfiles) GetPublicKey() (string, string, string, error) {
+	return c.GetPublicKeyWithHeaders("", nil)
+}
+
+// GetPublicKeyWithHeaders retrieves the server's public key with optional organization context.
+func (c *ClientEphemeralfiles) GetPublicKeyWithHeaders(orgID string, tags []string) (string, string, string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), DefaultAPIRequestTimeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.GetPublicKeyEndpoint(), nil)
@@ -44,6 +49,14 @@ func (c *ClientEphemeralfiles) GetPublicKey() (string, string, string, error) {
 	}
 	// Set headers
 	req.Header.Set("Authorization", "Bearer "+c.token)
+
+	// Add organization headers if provided
+	if orgID != "" {
+		req.Header.Set("X-Organization-Id", orgID)
+	}
+	if len(tags) > 0 {
+		req.Header.Set("X-File-Tags", joinTags(tags))
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -124,7 +137,7 @@ func (c *ClientEphemeralfiles) UploadE2E(fileToUpload string) error {
 	if err != nil {
 		return fmt.Errorf("error generating and encrypting AES key: %w", err)
 	}
-	
+
 	c.log.Debug("UploadE2E", slog.String("aesKey", string(keyBundle.AESKey)))
 	c.log.Debug("UploadE2E", slog.String("hexString", keyBundle.HexString))
 	c.log.Debug("UploadE2E", slog.String("encryptedAESKey", keyBundle.EncryptedAESKey))
@@ -135,13 +148,48 @@ func (c *ClientEphemeralfiles) UploadE2E(fileToUpload string) error {
 	if err != nil {
 		return fmt.Errorf("error sending AES key: %w", err)
 	}
-	
+
 	// Upload the file
 	err = c.UploadFileInChunks(keyBundle.AESKey, fileToUpload, c.UploadE2EEndpoint(transactionID))
 	if err != nil {
 		return fmt.Errorf("error uploading file: %w", err)
 	}
 	return nil
+}
+
+// UploadOrganizationFileE2E uploads a file to an organization using end-to-end encryption.
+func (c *ClientEphemeralfiles) UploadOrganizationFileE2E(orgID string, fileToUpload string, tags []string) (string, error) {
+	transactionID, fileID, pubkey, err := c.GetPublicKeyWithHeaders(orgID, tags)
+	if err != nil {
+		return "", fmt.Errorf("error getting public key: %w", err)
+	}
+	c.log.Debug("UploadOrganizationFileE2E", slog.String("fileID", fileID), slog.String("orgID", orgID))
+	c.log.Debug("UploadOrganizationFileE2E", slog.String("pubkey", pubkey))
+
+	// Generate and encrypt AES key using shared utility
+	keyBundle, err := GenerateAndEncryptAESKey(pubkey)
+	if err != nil {
+		return "", fmt.Errorf("error generating and encrypting AES key: %w", err)
+	}
+
+	c.log.Debug("UploadOrganizationFileE2E", slog.String("aesKey", string(keyBundle.AESKey)))
+	c.log.Debug("UploadOrganizationFileE2E", slog.String("hexString", keyBundle.HexString))
+	c.log.Debug("UploadOrganizationFileE2E", slog.String("encryptedAESKey", keyBundle.EncryptedAESKey))
+	c.log.Debug("UploadOrganizationFileE2E", slog.String("fileToUpload", fileToUpload))
+
+	// Send the encrypted AES key to the server using shared utility
+	err = c.SendAESKeyToEndpoint(c.SendAESKeyEndpoint(transactionID), keyBundle.EncryptedAESKey)
+	if err != nil {
+		return "", fmt.Errorf("error sending AES key: %w", err)
+	}
+
+	// Upload the file
+	err = c.UploadFileInChunks(keyBundle.AESKey, fileToUpload, c.UploadE2EEndpoint(transactionID))
+	if err != nil {
+		return "", fmt.Errorf("error uploading file: %w", err)
+	}
+
+	return fileID, nil
 }
 
 
@@ -199,17 +247,31 @@ func (c *ClientEphemeralfiles) uploadSingleChunk(
 	file *os.File, aeskey []byte, targetURL string, start, end, fileSize int64,
 ) error {
 	// Read chunk
-	chunk := make([]byte, end-start+1)
-	_, err := file.ReadAt(chunk, start)
+	chunkSize := end - start + 1
+	chunk := make([]byte, chunkSize)
+	bytesRead, err := file.ReadAt(chunk, start)
 	if err != nil && !errors.Is(err, io.EOF) {
 		return fmt.Errorf("error reading chunk: %w", err)
 	}
 
+	c.log.Debug("Read chunk",
+		slog.Int64("start", start),
+		slog.Int64("end", end),
+		slog.Int("expectedSize", int(chunkSize)),
+		slog.Int("actualBytesRead", bytesRead))
+
+	// Use only the bytes actually read
+	actualChunk := chunk[:bytesRead]
+
 	// Encrypt chunk
-	encryptedChunk, err := EncryptAES(aeskey, chunk)
+	encryptedChunk, err := EncryptAES(aeskey, actualChunk)
 	if err != nil {
 		return fmt.Errorf("error encrypting chunk: %w", err)
 	}
+
+	c.log.Debug("Encrypted chunk",
+		slog.Int("plaintextSize", bytesRead),
+		slog.Int("encryptedSize", len(encryptedChunk)))
 
 	// Create multipart form
 	body, contentType, err := c.createChunkForm(encryptedChunk, file)
@@ -281,4 +343,16 @@ func (c *ClientEphemeralfiles) sendChunkRequest(
 
 	c.log.Debug("UploadFileInChunks", slog.Int64("start", start), slog.Int64("end", end), slog.Int64("fileSize", fileSize))
 	return nil
+}
+
+// joinTags converts a slice of tags to a comma-separated string.
+func joinTags(tags []string) string {
+	result := ""
+	for i, tag := range tags {
+		if i > 0 {
+			result += ","
+		}
+		result += tag
+	}
+	return result
 }

@@ -68,13 +68,19 @@ func (c *ClientEphemeralfiles) CreateNewDownloadTransaction(
 }
 
 // DownloadE2E downloads and decrypts a file using end-to-end encryption.
-func (c *ClientEphemeralfiles) DownloadE2E(fileID string) error {
+func (c *ClientEphemeralfiles) DownloadE2E(fileID string, outputPath string) error {
 	// Get file information
 	fileInfo, err := c.getFileInformation(fileID)
 	if err != nil {
 		return err
 	}
 	c.logFileInfo(fileInfo)
+
+	// Determine output file path: use provided path or fallback to server filename
+	outputFilePath := outputPath
+	if outputFilePath == "" {
+		outputFilePath = fileInfo.Filename
+	}
 
 	// Setup download transaction and encryption
 	transactionID, keyBundle, err := c.setupDownloadTransaction(fileID)
@@ -83,7 +89,7 @@ func (c *ClientEphemeralfiles) DownloadE2E(fileID string) error {
 	}
 
 	// Download all parts
-	return c.downloadAllParts(fileInfo, transactionID, keyBundle.AESKey)
+	return c.downloadAllParts(fileInfo, transactionID, keyBundle.AESKey, outputFilePath)
 }
 
 // DownloadPartE2EEndpoint returns the API endpoint URL for downloading a specific part of an E2E encrypted file.
@@ -92,8 +98,24 @@ func (c *ClientEphemeralfiles) DownloadPartE2EEndpoint(transactionID string, par
 }
 
 // DownloadPartE2E downloads and decrypts a specific part of an E2E encrypted file.
+// Deprecated: Use DownloadPartE2EToFile instead.
 func (c *ClientEphemeralfiles) DownloadPartE2E(
 	outputFilePath string, transactionID string, aesKey []byte, part int,
+) (int, error) {
+	file, err := os.OpenFile(outputFilePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, FilePermission)
+	if err != nil {
+		return 0, fmt.Errorf("error opening file: %w", err)
+	}
+	defer func() {
+		_ = file.Close()
+	}()
+
+	return c.DownloadPartE2EToFile(file, transactionID, aesKey, part)
+}
+
+// DownloadPartE2EToFile downloads and decrypts a specific part of an E2E encrypted file to an open file handle.
+func (c *ClientEphemeralfiles) DownloadPartE2EToFile(
+	file *os.File, transactionID string, aesKey []byte, part int,
 ) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), DefaultAPIRequestTimeout)
 	defer cancel()
@@ -120,33 +142,34 @@ func (c *ClientEphemeralfiles) DownloadPartE2E(
 	if err != nil {
 		return 0, fmt.Errorf("error reading response: %w", err)
 	}
+
+	encryptedSize := len(body)
+	c.log.Debug("Received encrypted chunk",
+		slog.Int("part", part),
+		slog.Int("encryptedSize", encryptedSize))
+
 	// Decrypt response
 	decryptedChunk, err := DecryptAES(aesKey, body)
 	if err != nil {
 		return 0, fmt.Errorf("error decrypting chunk: %w", err)
 	}
 
-	// Write decrypted chunk to file
-	// #nosec G304 -- outputFilePath is controlled by user for file download
-	file, err := os.OpenFile(outputFilePath, os.O_WRONLY|os.O_CREATE, FilePermission)
-	if err != nil {
-		return 0, fmt.Errorf("error opening file: %w", err)
-	}
-	defer func() {
-		_ = file.Close()
-	}()
+	decryptedSize := len(decryptedChunk)
+	c.log.Debug("Decrypted chunk",
+		slog.Int("part", part),
+		slog.Int("decryptedSize", decryptedSize),
+		slog.Int("ivOverhead", encryptedSize-decryptedSize))
 
-	// Seek to the correct position for this part (part * chunkSize)
-	_, err = file.Seek(int64(part)*chunkSize, 0)
-	if err != nil {
-		return 0, fmt.Errorf("error seeking in file: %w", err)
-	}
-
-	// Write the chunk
+	// Write the chunk directly to the already-open file
 	n, err := file.Write(decryptedChunk)
 	if err != nil {
 		return 0, fmt.Errorf("error writing chunk to file: %w", err)
 	}
+
+	c.log.Debug("Wrote chunk to file",
+		slog.Int("part", part),
+		slog.Int("bytesWritten", n),
+		slog.Int("expectedToWrite", decryptedSize))
 
 	// Update progress bar
 	if c.bar != nil {
@@ -250,17 +273,43 @@ func (c *ClientEphemeralfiles) setupDownloadTransaction(fileID string) (string, 
 }
 
 // downloadAllParts downloads all file parts with progress tracking.
-func (c *ClientEphemeralfiles) downloadAllParts(fileInfo *dto.InfoFile, transactionID string, aesKey []byte) error {
+func (c *ClientEphemeralfiles) downloadAllParts(fileInfo *dto.InfoFile, transactionID string, aesKey []byte, outputFilePath string) error {
 	c.InitProgressBar("downloading file...", fileInfo.Size)
 	defer c.CloseProgressBar()
 
+	// Open file once for all chunks
+	// #nosec G304 -- outputFilePath is controlled by user for file download
+	file, err := os.OpenFile(outputFilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, FilePermission)
+	if err != nil {
+		return fmt.Errorf("error opening output file: %w", err)
+	}
+	defer func() {
+		_ = file.Close()
+	}()
+
+	c.log.Info("Starting download",
+		slog.Int("totalParts", fileInfo.NbParts),
+		slog.Int64("expectedSize", fileInfo.Size))
+
+	totalBytesWritten := int64(0)
 	for i := range fileInfo.NbParts {
 		c.log.Debug("DownloadE2E", slog.Int("Part", i))
-		chunkSize, err := c.DownloadPartE2E(fileInfo.Filename, transactionID, aesKey, i)
+		chunkSize, err := c.DownloadPartE2EToFile(file, transactionID, aesKey, i)
 		if err != nil {
 			return fmt.Errorf("error downloading part %d: %w", i, err)
 		}
-		c.log.Debug("DownloadE2E part downloaded", slog.Int("Part", i), slog.Int("ChunkSize", chunkSize))
+		totalBytesWritten += int64(chunkSize)
+		c.log.Info("Downloaded chunk",
+			slog.Int("part", i),
+			slog.Int("chunkSize", chunkSize),
+			slog.Int64("totalWritten", totalBytesWritten),
+			slog.Int64("expected", fileInfo.Size))
 	}
+
+	c.log.Info("Download complete",
+		slog.Int64("totalBytesWritten", totalBytesWritten),
+		slog.Int64("expectedSize", fileInfo.Size),
+		slog.Int64("difference", fileInfo.Size-totalBytesWritten))
+
 	return nil
 }
