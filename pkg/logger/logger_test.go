@@ -2,6 +2,7 @@ package logger_test
 
 import (
 	"log/slog"
+	"sync"
 	"testing"
 
 	"github.com/ephemeralfiles/eph/pkg/logger"
@@ -210,10 +211,54 @@ func TestLoggerEdgeCases(t *testing.T) {
 		t.Parallel()
 
 		logger := logger.NewLogger("info")
-		
+
 		// Test that loggers can handle nil values in structured logging without panicking
 		assert.NotPanics(t, func() {
 			logger.Info("test with nil", "key", nil)
 		})
+	})
+
+	t.Run("concurrent logger creation", func(t *testing.T) {
+		t.Parallel()
+
+		// Create multiple loggers concurrently
+		const numLoggers = 10
+		loggers := make([]*slog.Logger, numLoggers)
+		var wg sync.WaitGroup
+
+		for i := range numLoggers {
+			wg.Add(1)
+			go func(index int) {
+				defer wg.Done()
+				loggers[index] = logger.NewLogger("debug")
+			}(i)
+		}
+
+		// Wait for all goroutines to complete
+		wg.Wait()
+
+		// Verify all loggers were created
+		for i := range numLoggers {
+			assert.NotNil(t, loggers[i])
+		}
+	})
+
+	t.Run("all level variations", func(t *testing.T) {
+		t.Parallel()
+
+		levels := []string{"debug", "info", "warn", "error", "unknown", ""}
+
+		for _, level := range levels {
+			logger := logger.NewLogger(level)
+			assert.NotNil(t, logger)
+
+			// Ensure all log methods work without panic
+			assert.NotPanics(t, func() {
+				logger.Debug("debug")
+				logger.Info("info")
+				logger.Warn("warn")
+				logger.Error("error")
+			})
+		}
 	})
 }
