@@ -407,8 +407,8 @@ func TestSendUploadRequest(t *testing.T) {
 				client.SetEndpoint(ts.URL)
 				client.DisableProgressBar()
 
-				err = client.Upload(testFile)
-				
+				err := client.Upload(testFile)
+
 				if statusCode == http.StatusOK {
 					assert.NoError(t, err)
 				} else {

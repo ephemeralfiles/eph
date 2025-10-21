@@ -13,9 +13,8 @@ import (
 )
 
 func TestWhoami(t *testing.T) {
-	t.Parallel()
+	// Cannot run in parallel because subtests modify global ephcli.Now variable
 	t.Run("valid token", func(t *testing.T) {
-		t.Parallel()
 		expirationTime := strconv.FormatInt(time.Date(2021, 3, 22, 0, 0, 0, 0, time.UTC).Unix(), 10)
 		ephcli.Now = func() time.Time {
 			now := time.Date(2021, 3, 21, 0, 0, 0, 0, time.UTC) // 1 day before expiration
@@ -30,7 +29,6 @@ func TestWhoami(t *testing.T) {
 		assert.False(t, result)
 	})
 	t.Run("expired token", func(t *testing.T) {
-		t.Parallel()
 		expirationTime := strconv.FormatInt(time.Date(2021, 3, 22, 0, 0, 0, 0, time.UTC).Unix(), 10)
 		ephcli.Now = func() time.Time {
 			now := time.Date(2021, 3, 23, 0, 0, 0, 0, time.UTC) // 1 day after expiration
